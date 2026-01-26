@@ -387,3 +387,169 @@ export async function bulkApplyLinkSuggestions(
     error: appliedCount === 0 ? "No links could be applied" : null,
   };
 }
+
+// Get content for before/after preview
+export async function getContentForPreview(
+  storeId: string,
+  contentType: "product" | "page" | "blog_post",
+  contentId: string,
+  suggestions: LinkSuggestion[]
+): Promise<{
+  data: { before: string; after: string; title: string } | null;
+  error: string | null;
+}> {
+  const supabase = await createClient();
+
+  let content: string = "";
+  let title: string = "";
+
+  if (contentType === "product") {
+    const { data: product } = await supabase
+      .from("products")
+      .select("name, description")
+      .eq("id", contentId)
+      .eq("store_id", storeId)
+      .single();
+    if (product) {
+      content = product.description || "";
+      title = product.name;
+    }
+  } else if (contentType === "page") {
+    const { data: page } = await supabase
+      .from("pages")
+      .select("title, content")
+      .eq("id", contentId)
+      .eq("store_id", storeId)
+      .single();
+    if (page) {
+      content = page.content || "";
+      title = page.title;
+    }
+  } else if (contentType === "blog_post") {
+    const { data: post } = await supabase
+      .from("blog_posts")
+      .select("title, content")
+      .eq("id", contentId)
+      .eq("store_id", storeId)
+      .single();
+    if (post) {
+      content = post.content || "";
+      title = post.title;
+    }
+  }
+
+  if (!content) {
+    return { data: null, error: "Content not found" };
+  }
+
+  // Generate after content with all suggested links
+  let afterContent = content;
+  for (const suggestion of suggestions) {
+    afterContent = applyLinkToContent(
+      afterContent,
+      suggestion.anchorText,
+      suggestion.targetUrl
+    );
+  }
+
+  return {
+    data: {
+      before: content,
+      after: afterContent,
+      title,
+    },
+    error: null,
+  };
+}
+
+// Push changes to WordPress via webhook
+export async function pushInternalLinksToWordPress(
+  storeId: string,
+  contentType: "product" | "page" | "blog_post",
+  contentId: string
+): Promise<{ success: boolean; error: string | null }> {
+  const supabase = await createClient();
+
+  // Get the store's webhook URL
+  const { data: store } = await supabase
+    .from("stores")
+    .select("url, settings")
+    .eq("id", storeId)
+    .single();
+
+  if (!store) {
+    return { success: false, error: "Store not found" };
+  }
+
+  const settings = (store.settings as Record<string, unknown>) || {};
+  const webhookUrl = settings.webhook_url as string;
+
+  if (!webhookUrl) {
+    // If no webhook, just return success (content was saved locally)
+    return { success: true, error: null };
+  }
+
+  // Get the updated content
+  let content: string = "";
+  let wpId: string | null = null;
+
+  if (contentType === "product") {
+    const { data: product } = await supabase
+      .from("products")
+      .select("description, external_id")
+      .eq("id", contentId)
+      .single();
+    if (product) {
+      content = product.description || "";
+      wpId = product.external_id;
+    }
+  } else if (contentType === "page") {
+    const { data: page } = await supabase
+      .from("pages")
+      .select("content, external_id")
+      .eq("id", contentId)
+      .single();
+    if (page) {
+      content = page.content || "";
+      wpId = page.external_id;
+    }
+  } else if (contentType === "blog_post") {
+    const { data: post } = await supabase
+      .from("blog_posts")
+      .select("content, external_id")
+      .eq("id", contentId)
+      .single();
+    if (post) {
+      content = post.content || "";
+      wpId = post.external_id;
+    }
+  }
+
+  if (!wpId) {
+    return { success: true, error: null }; // No external ID, can't push
+  }
+
+  // Send webhook to update content
+  try {
+    const response = await fetch(webhookUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "update_content",
+        type: contentType,
+        id: wpId,
+        content,
+      }),
+    });
+
+    if (!response.ok) {
+      return { success: false, error: "Failed to push to WordPress" };
+    }
+
+    return { success: true, error: null };
+  } catch {
+    return { success: false, error: "Webhook request failed" };
+  }
+}
