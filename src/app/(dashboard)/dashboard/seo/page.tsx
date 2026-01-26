@@ -5,11 +5,13 @@ import { SEOAnalyzerTool } from "@/components/seo-tools/seo-analyzer-tool";
 import { AEOOptimizerTool } from "@/components/seo-tools/aeo-optimizer-tool";
 import { SchemaGeneratorTool } from "@/components/seo-tools/schema-generator-tool";
 import { ContentImprovementTool } from "@/components/seo-tools/content-improvement-tool";
+import { InternalLinkingTool } from "@/components/seo-tools/internal-linking-tool";
 import {
   Search,
   MessageSquare,
   Code,
   Sparkles,
+  Link2,
 } from "lucide-react";
 
 export default async function SEOToolsPage() {
@@ -50,14 +52,18 @@ export default async function SEOToolsPage() {
       </div>
 
       <Tabs defaultValue="analyzer" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="analyzer" className="flex items-center gap-2">
             <Search className="h-4 w-4" />
-            <span className="hidden sm:inline">SEO Analyzer</span>
+            <span className="hidden sm:inline">Analyzer</span>
+          </TabsTrigger>
+          <TabsTrigger value="links" className="flex items-center gap-2">
+            <Link2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Links</span>
           </TabsTrigger>
           <TabsTrigger value="aeo" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            <span className="hidden sm:inline">AEO Tools</span>
+            <span className="hidden sm:inline">AEO</span>
           </TabsTrigger>
           <TabsTrigger value="schema" className="flex items-center gap-2">
             <Code className="h-4 w-4" />
@@ -65,12 +71,16 @@ export default async function SEOToolsPage() {
           </TabsTrigger>
           <TabsTrigger value="improve" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">AI Improve</span>
+            <span className="hidden sm:inline">Improve</span>
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="analyzer">
           <SEOAnalyzerTool stores={stores || []} />
+        </TabsContent>
+
+        <TabsContent value="links">
+          <InternalLinkingTool stores={stores || []} />
         </TabsContent>
 
         <TabsContent value="aeo">
