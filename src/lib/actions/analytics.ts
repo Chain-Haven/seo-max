@@ -4,18 +4,20 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
   getGSCClient,
+  getGSCClientForStore,
   generateSimulatedGSCData,
   type GSCPerformanceRow,
 } from "@/lib/integrations/google-search-console";
 import {
-  getSiteSpeedMonitor,
+  getSiteSpeedMonitorForStore,
   type SpeedMetrics,
 } from "@/lib/integrations/site-speed";
+import { getEffectiveCredentials } from "@/lib/actions/api-credentials";
 
 // === Google Search Console ===
 
 export async function getGSCAuthUrl(storeId: string): Promise<string> {
-  const client = getGSCClient();
+  const client = await getGSCClientForStore(storeId);
   return client.getAuthUrl(storeId);
 }
 
@@ -24,7 +26,7 @@ export async function connectGSC(
   code: string
 ): Promise<{ success: boolean; error: string | null }> {
   try {
-    const client = getGSCClient();
+    const client = await getGSCClientForStore(storeId);
     const credentials = await client.exchangeCodeForTokens(code);
 
     const supabase = await createServiceClient();
@@ -109,8 +111,11 @@ export async function getGSCPerformanceData(
     .eq("store_id", storeId)
     .single();
 
+  // Get effective credentials for this store
+  const creds = await getEffectiveCredentials(storeId);
+
   // If not connected or no API keys, return simulated data
-  if (!connection?.access_token || !process.env.GOOGLE_CLIENT_ID) {
+  if (!connection?.access_token || !creds.googleClientId) {
     const simulated = generateSimulatedGSCData(days);
     const totals = simulated.dates.reduce(
       (acc, row) => ({
@@ -131,7 +136,7 @@ export async function getGSCPerformanceData(
   }
 
   try {
-    const client = getGSCClient();
+    const client = await getGSCClientForStore(storeId);
 
     // Check if token needs refresh
     if (new Date(connection.token_expiry) < new Date()) {
@@ -206,7 +211,7 @@ export async function analyzePageSpeed(
   device: "mobile" | "desktop" = "mobile"
 ): Promise<{ data: SpeedMetrics | null; error: string | null }> {
   try {
-    const monitor = getSiteSpeedMonitor();
+    const monitor = await getSiteSpeedMonitorForStore(storeId);
     const metrics = await monitor.analyzeUrl(url, device);
 
     // Save to database

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getSerpClient } from "@/lib/serp/client";
+import { getSerpClientForStore } from "@/lib/serp/client";
 
 // Vercel Cron: runs daily at 6 AM UTC
 // Add to vercel.json: { "crons": [{ "path": "/api/cron/rank-check", "schedule": "0 6 * * *" }] }
@@ -16,7 +16,6 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createServiceClient();
-  const serpClient = getSerpClient();
 
   try {
     // Get all active stores
@@ -36,6 +35,9 @@ export async function GET(request: Request) {
       if (!store.url) continue;
 
       const domain = new URL(store.url).hostname.replace("www.", "");
+      
+      // Get SERP client with store-specific credentials
+      const serpClient = await getSerpClientForStore(store.id);
 
       // Get keywords for this store
       const { data: keywords } = await supabase

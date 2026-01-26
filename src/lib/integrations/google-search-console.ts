@@ -39,10 +39,15 @@ export class GoogleSearchConsoleClient {
   private clientSecret: string;
   private redirectUri: string;
 
-  constructor() {
-    this.clientId = process.env.GOOGLE_CLIENT_ID || "";
-    this.clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  constructor(config?: { clientId?: string; clientSecret?: string }) {
+    this.clientId = config?.clientId || process.env.GOOGLE_CLIENT_ID || "";
+    this.clientSecret = config?.clientSecret || process.env.GOOGLE_CLIENT_SECRET || "";
     this.redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
+  }
+
+  // Check if credentials are configured
+  hasCredentials(): boolean {
+    return !!(this.clientId && this.clientSecret);
   }
 
   // Generate OAuth URL for user authorization
@@ -343,12 +348,19 @@ export function generateSimulatedGSCData(days: number = 28): {
   return { queries, pages, dates, countries, devices };
 }
 
-// Singleton instance
-let gscClient: GoogleSearchConsoleClient | null = null;
+// Factory function - creates client with optional per-store credentials
+export function getGSCClient(config?: { clientId?: string; clientSecret?: string }): GoogleSearchConsoleClient {
+  return new GoogleSearchConsoleClient(config);
+}
 
-export function getGSCClient(): GoogleSearchConsoleClient {
-  if (!gscClient) {
-    gscClient = new GoogleSearchConsoleClient();
-  }
-  return gscClient;
+// Create client with credentials from store
+export async function getGSCClientForStore(storeId: string): Promise<GoogleSearchConsoleClient> {
+  // Import dynamically to avoid circular deps
+  const { getEffectiveCredentials } = await import("@/lib/actions/api-credentials");
+  const creds = await getEffectiveCredentials(storeId);
+  
+  return new GoogleSearchConsoleClient({
+    clientId: creds.googleClientId || undefined,
+    clientSecret: creds.googleClientSecret || undefined,
+  });
 }

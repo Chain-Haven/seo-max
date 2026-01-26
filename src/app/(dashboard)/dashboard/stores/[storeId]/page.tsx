@@ -31,6 +31,8 @@ import {
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
 import { SEOAuditPanel } from "@/components/seo/seo-audit-panel";
+import { ApiCredentialsForm } from "@/components/settings/api-credentials-form";
+import { getStoreApiCredentials } from "@/lib/actions/api-credentials";
 
 interface Props {
   params: Promise<{ storeId: string }>;
@@ -86,6 +88,8 @@ export default async function StoreDetailPage({ params }: Props) {
     .from("tracked_keywords")
     .select("*", { count: "exact", head: true })
     .eq("store_id", storeId);
+
+  const { data: apiCredentials } = await getStoreApiCredentials(storeId);
 
   return (
     <div className="space-y-6">
@@ -333,22 +337,10 @@ export default async function StoreDetailPage({ params }: Props) {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Store Settings
-              </CardTitle>
-              <CardDescription>
-                Configure store-specific settings and preferences.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Store settings will be available in a future update.
-              </p>
-            </CardContent>
-          </Card>
+          <ApiCredentialsForm
+            storeId={storeId}
+            initialCredentials={apiCredentials}
+          />
         </TabsContent>
       </Tabs>
     </div>

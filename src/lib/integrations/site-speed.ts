@@ -40,8 +40,12 @@ const PSI_API_BASE = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed
 export class SiteSpeedMonitor {
   private apiKey: string;
 
-  constructor() {
-    this.apiKey = process.env.GOOGLE_PAGESPEED_API_KEY || "";
+  constructor(config?: { apiKey?: string }) {
+    this.apiKey = config?.apiKey || process.env.GOOGLE_PAGESPEED_API_KEY || "";
+  }
+
+  hasApiKey(): boolean {
+    return !!this.apiKey;
   }
 
   async analyzeUrl(
@@ -232,12 +236,17 @@ export class SiteSpeedMonitor {
   }
 }
 
-// Singleton
-let speedMonitor: SiteSpeedMonitor | null = null;
+// Factory function - creates monitor with optional per-store credentials
+export function getSiteSpeedMonitor(config?: { apiKey?: string }): SiteSpeedMonitor {
+  return new SiteSpeedMonitor(config);
+}
 
-export function getSiteSpeedMonitor(): SiteSpeedMonitor {
-  if (!speedMonitor) {
-    speedMonitor = new SiteSpeedMonitor();
-  }
-  return speedMonitor;
+// Create monitor with credentials from store
+export async function getSiteSpeedMonitorForStore(storeId: string): Promise<SiteSpeedMonitor> {
+  const { getEffectiveCredentials } = await import("@/lib/actions/api-credentials");
+  const creds = await getEffectiveCredentials(storeId);
+  
+  return new SiteSpeedMonitor({
+    apiKey: creds.googlePagespeedKey || undefined,
+  });
 }

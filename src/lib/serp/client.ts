@@ -255,16 +255,21 @@ export class SerpClient {
   }
 }
 
-// Singleton instance
-let serpClient: SerpClient | null = null;
+// Factory function - creates client with optional config
+export function getSerpClient(config?: { apiKey?: string }): SerpClient {
+  const apiKey = config?.apiKey || process.env.SERP_API_KEY;
+  return new SerpClient({
+    provider: apiKey ? "serpapi" : "simulated",
+    apiKey,
+  });
+}
 
-export function getSerpClient(): SerpClient {
-  if (!serpClient) {
-    const apiKey = process.env.SERP_API_KEY;
-    serpClient = new SerpClient({
-      provider: apiKey ? "serpapi" : "simulated",
-      apiKey,
-    });
-  }
-  return serpClient;
+// Create client with credentials from store
+export async function getSerpClientForStore(storeId: string): Promise<SerpClient> {
+  const { getEffectiveCredentials } = await import("@/lib/actions/api-credentials");
+  const creds = await getEffectiveCredentials(storeId);
+  
+  return getSerpClient({
+    apiKey: creds.serpApiKey || undefined,
+  });
 }

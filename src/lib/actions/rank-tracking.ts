@@ -2,7 +2,7 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { getSerpClient } from "@/lib/serp/client";
+import { getSerpClientForStore } from "@/lib/serp/client";
 import type {
   TrackedKeyword,
   KeywordRankingHistory,
@@ -222,8 +222,8 @@ export async function checkKeywordRanking(
 
   const previousPosition = prevRanking?.position ?? null;
 
-  // Check current ranking
-  const serpClient = getSerpClient();
+  // Check current ranking (using store-specific credentials)
+  const serpClient = await getSerpClientForStore(storeId);
   const serpResult = await serpClient.checkRanking(keyword.keyword, domain, {
     location: keyword.location,
     device: keyword.device,
