@@ -27,6 +27,7 @@ import {
   FileBarChart,
   ArrowRightLeft,
   Link as LinkIcon,
+  Sparkles,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -195,7 +196,20 @@ export default async function StoreDetailPage({ params }: Props) {
       </div>
 
       {/* Additional Tools */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
+        <Link href={`/dashboard/stores/${storeId}/improvements`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-primary/30 bg-primary/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="font-medium text-sm">AI Improvements</p>
+                  <p className="text-xs text-muted-foreground">Auto-optimize</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
         <Link href={`/dashboard/stores/${storeId}/analytics`}>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardContent className="pt-4">
