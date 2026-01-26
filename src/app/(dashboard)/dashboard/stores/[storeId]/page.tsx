@@ -21,6 +21,7 @@ import {
   Settings,
   ChevronRight,
   Newspaper,
+  TrendingUp,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -76,6 +77,11 @@ export default async function StoreDetailPage({ params }: Props) {
     .select("*", { count: "exact", head: true })
     .eq("store_id", storeId);
 
+  const { count: keywordCount } = await supabase
+    .from("tracked_keywords")
+    .select("*", { count: "exact", head: true })
+    .eq("store_id", storeId);
+
   return (
     <div className="space-y-6">
       <div>
@@ -108,7 +114,7 @@ export default async function StoreDetailPage({ params }: Props) {
       </div>
 
       {/* Stats - Clickable cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Link href={`/dashboard/stores/${storeId}/products`}>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -154,6 +160,23 @@ export default async function StoreDetailPage({ params }: Props) {
                 <div>
                   <div className="text-2xl font-bold">{blogCount || 0}</div>
                   <p className="text-xs text-muted-foreground">Manage content</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/rankings`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rankings</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{keywordCount || 0}</div>
+                  <p className="text-xs text-muted-foreground">Track keywords</p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
