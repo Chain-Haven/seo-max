@@ -19,9 +19,12 @@ import {
   Package,
   FileText,
   Settings,
+  ChevronRight,
+  Newspaper,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
+import { SEOAuditPanel } from "@/components/seo/seo-audit-panel";
 
 interface Props {
   params: Promise<{ storeId: string }>;
@@ -104,38 +107,59 @@ export default async function StoreDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats - Clickable cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Products</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{productCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Synced from store</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pages</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pageCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Including categories</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Blog Posts</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{blogCount || 0}</div>
-            <p className="text-xs text-muted-foreground">Published & drafts</p>
-          </CardContent>
-        </Card>
+        <Link href={`/dashboard/stores/${storeId}/products`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Products</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{productCount || 0}</div>
+                  <p className="text-xs text-muted-foreground">Manage SEO</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/pages`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pages</CardTitle>
+              <FileText className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{pageCount || 0}</div>
+                  <p className="text-xs text-muted-foreground">Manage SEO</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/blog`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Blog Posts</CardTitle>
+              <Newspaper className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{blogCount || 0}</div>
+                  <p className="text-xs text-muted-foreground">Manage content</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Tabs */}
@@ -147,6 +171,36 @@ export default async function StoreDetailPage({ params }: Props) {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {store.status === "pending" && (
+            <Card className="border-yellow-500/50 bg-yellow-500/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Complete Setup
+                </CardTitle>
+                <CardDescription>
+                  Install the WordPress plugin to connect this store.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ol className="list-decimal list-inside space-y-2 text-sm">
+                  <li>Go to the API Keys tab and copy your API key</li>
+                  <li>Download and install the SEO Max plugin on your WordPress site</li>
+                  <li>Paste your API key in the plugin settings</li>
+                  <li>Click Connect to complete the setup</li>
+                </ol>
+                <Link href="/dashboard/settings">
+                  <Button variant="outline" size="sm">
+                    Download Plugin
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* SEO Audit Panel */}
+          <SEOAuditPanel storeId={storeId} />
+
           <Card>
             <CardHeader>
               <CardTitle>Connection Status</CardTitle>
@@ -175,28 +229,6 @@ export default async function StoreDetailPage({ params }: Props) {
               </div>
             </CardContent>
           </Card>
-
-          {store.status === "pending" && (
-            <Card className="border-yellow-500/50 bg-yellow-500/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Complete Setup
-                </CardTitle>
-                <CardDescription>
-                  Install the WordPress plugin to connect this store.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ol className="list-decimal list-inside space-y-2 text-sm">
-                  <li>Go to the API Keys tab and copy your API key</li>
-                  <li>Download and install the SEO Max plugin on your WordPress site</li>
-                  <li>Paste your API key in the plugin settings</li>
-                  <li>Click Connect to complete the setup</li>
-                </ol>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="api" className="space-y-4">
