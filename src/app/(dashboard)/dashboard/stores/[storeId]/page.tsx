@@ -22,6 +22,11 @@ import {
   ChevronRight,
   Newspaper,
   TrendingUp,
+  BarChart3,
+  Gauge,
+  FileBarChart,
+  ArrowRightLeft,
+  Link as LinkIcon,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -179,6 +184,75 @@ export default async function StoreDetailPage({ params }: Props) {
                   <p className="text-xs text-muted-foreground">Track keywords</p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Additional Tools */}
+      <div className="grid gap-4 md:grid-cols-5">
+        <Link href={`/dashboard/stores/${storeId}/analytics`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-blue-500" />
+                <div>
+                  <p className="font-medium text-sm">Analytics</p>
+                  <p className="text-xs text-muted-foreground">Search Console</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/speed`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Gauge className="h-5 w-5 text-green-500" />
+                <div>
+                  <p className="font-medium text-sm">Speed</p>
+                  <p className="text-xs text-muted-foreground">Core Web Vitals</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/reports`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <FileBarChart className="h-5 w-5 text-purple-500" />
+                <div>
+                  <p className="font-medium text-sm">Reports</p>
+                  <p className="text-xs text-muted-foreground">SEO Reports</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/redirects`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <ArrowRightLeft className="h-5 w-5 text-yellow-500" />
+                <div>
+                  <p className="font-medium text-sm">Redirects</p>
+                  <p className="text-xs text-muted-foreground">URL Manager</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/backlinks`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <LinkIcon className="h-5 w-5 text-red-500" />
+                <div>
+                  <p className="font-medium text-sm">Backlinks</p>
+                  <p className="text-xs text-muted-foreground">Link Profile</p>
+                </div>
               </div>
             </CardContent>
           </Card>
