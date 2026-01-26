@@ -2,10 +2,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getStoreBlogPosts } from "@/lib/actions/seo";
 import { getStore } from "@/lib/actions/stores";
+import { getContentCalendar } from "@/lib/actions/blog";
 import { BlogPostSEOTable } from "@/components/seo/blog-post-seo-table";
+import { ContentCalendar } from "@/components/blog/content-calendar";
 import { SEOStats } from "@/components/seo/seo-stats";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Plus, RefreshCw, Sparkles, Calendar, List } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
@@ -30,11 +33,12 @@ export default async function BlogSEOPage({ params }: Props) {
   }
 
   const posts = await getStoreBlogPosts(storeId);
+  const { calendar } = await getContentCalendar(storeId);
 
   // Calculate stats
   const totalPosts = posts.length;
   const publishedPosts = posts.filter((p) => p.status === "published").length;
-  const withMetaTitle = posts.filter((p) => p.meta_title).length;
+  const draftPosts = posts.filter((p) => p.status === "draft").length;
   const withMetaDescription = posts.filter((p) => p.meta_description).length;
 
   return (
@@ -47,7 +51,7 @@ export default async function BlogSEOPage({ params }: Props) {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Blog Posts</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Blog Content</h1>
             <p className="text-muted-foreground">{store.name}</p>
           </div>
         </div>
@@ -58,8 +62,8 @@ export default async function BlogSEOPage({ params }: Props) {
           </Button>
           <Link href={`/dashboard/stores/${storeId}/blog/new`}>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Post
+              <Sparkles className="mr-2 h-4 w-4" />
+              AI Create Post
             </Button>
           </Link>
         </div>
@@ -76,24 +80,40 @@ export default async function BlogSEOPage({ params }: Props) {
             label: "Published",
             value: publishedPosts,
             total: totalPosts,
-            description: "Published blog posts",
+            description: "Live on site",
           },
           {
-            label: "Meta Titles",
-            value: withMetaTitle,
-            total: totalPosts,
-            description: "Posts with meta titles",
+            label: "Drafts",
+            value: draftPosts,
+            description: "Ready to edit",
           },
           {
-            label: "Meta Descriptions",
+            label: "SEO Ready",
             value: withMetaDescription,
             total: totalPosts,
-            description: "Posts with meta descriptions",
+            description: "With meta descriptions",
           },
         ]}
       />
 
-      <BlogPostSEOTable posts={posts} storeId={storeId} />
+      <Tabs defaultValue="calendar">
+        <TabsList>
+          <TabsTrigger value="calendar">
+            <Calendar className="mr-2 h-4 w-4" />
+            Content Calendar
+          </TabsTrigger>
+          <TabsTrigger value="list">
+            <List className="mr-2 h-4 w-4" />
+            All Posts
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="calendar" className="mt-4">
+          {calendar && <ContentCalendar calendar={calendar} />}
+        </TabsContent>
+        <TabsContent value="list" className="mt-4">
+          <BlogPostSEOTable posts={posts} storeId={storeId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

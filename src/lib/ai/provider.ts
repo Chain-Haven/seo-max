@@ -156,7 +156,7 @@ Return only the alt text, nothing else.`;
   return result.content.trim().replace(/^["']|["']$/g, "");
 }
 
-export interface BlogPostOutline {
+export interface SimpleBlogOutline {
   title: string;
   metaDescription: string;
   sections: Array<{
@@ -169,12 +169,12 @@ export interface BlogPostOutline {
   }>;
 }
 
-export async function generateBlogOutline(
+export async function generateSimpleBlogOutline(
   topic: string,
   targetKeywords: string[],
   context?: string,
   options?: AIGenerateOptions & { provider?: AIProviderType }
-): Promise<BlogPostOutline> {
+): Promise<SimpleBlogOutline> {
   const prompt = `Create a comprehensive blog post outline for the following topic:
 
 Topic: ${topic}
@@ -201,7 +201,7 @@ Generate a JSON object with this structure:
 
 Include 4-6 sections and 3-5 FAQ items. Make the outline comprehensive and SEO-friendly.`;
 
-  return generateJSON<BlogPostOutline>(prompt, {
+  return generateJSON<SimpleBlogOutline>(prompt, {
     ...options,
     systemPrompt: "You are an SEO content strategist. Create comprehensive, well-structured content outlines.",
     temperature: 0.8,
