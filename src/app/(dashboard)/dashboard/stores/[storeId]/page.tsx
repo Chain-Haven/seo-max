@@ -28,6 +28,11 @@ import {
   ArrowRightLeft,
   Link as LinkIcon,
   Sparkles,
+  Search,
+  Bug,
+  Target,
+  Copy,
+  DollarSign,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -195,8 +200,34 @@ export default async function StoreDetailPage({ params }: Props) {
         </Link>
       </div>
 
-      {/* Additional Tools */}
+      {/* Additional Tools - Row 1 */}
       <div className="grid gap-4 md:grid-cols-6">
+        <Link href={`/dashboard/stores/${storeId}/keywords`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-blue-500/30 bg-blue-500/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Search className="h-5 w-5 text-blue-500" />
+                <div>
+                  <p className="font-medium text-sm">Keywords</p>
+                  <p className="text-xs text-muted-foreground">Research</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/audit`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-orange-500/30 bg-orange-500/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Bug className="h-5 w-5 text-orange-500" />
+                <div>
+                  <p className="font-medium text-sm">Site Audit</p>
+                  <p className="text-xs text-muted-foreground">Find Issues</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
         <Link href={`/dashboard/stores/${storeId}/improvements`}>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-primary/30 bg-primary/5">
             <CardContent className="pt-4">
@@ -210,6 +241,49 @@ export default async function StoreDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </Link>
+        <Link href={`/dashboard/stores/${storeId}/cannibalization`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-red-500/30 bg-red-500/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Copy className="h-5 w-5 text-red-500" />
+                <div>
+                  <p className="font-medium text-sm">Cannibalization</p>
+                  <p className="text-xs text-muted-foreground">Detect conflicts</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/competitors`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-purple-500/30 bg-purple-500/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Target className="h-5 w-5 text-purple-500" />
+                <div>
+                  <p className="font-medium text-sm">Competitors</p>
+                  <p className="text-xs text-muted-foreground">Gap analysis</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/value`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-green-500/30 bg-green-500/5">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-5 w-5 text-green-500" />
+                <div>
+                  <p className="font-medium text-sm">Traffic Value</p>
+                  <p className="text-xs text-muted-foreground">ROI estimate</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* Additional Tools - Row 2 */}
+      <div className="grid gap-4 md:grid-cols-6">
         <Link href={`/dashboard/stores/${storeId}/analytics`}>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardContent className="pt-4">
