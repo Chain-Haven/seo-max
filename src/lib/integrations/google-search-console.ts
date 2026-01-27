@@ -1,366 +1,336 @@
-/**
- * Google Search Console Integration
- * Handles OAuth and data fetching from GSC API
- */
+import { google } from "googleapis";
 
 export interface GSCCredentials {
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
+  clientId: string;
+  clientSecret: string;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
-export interface GSCPerformanceRow {
-  keys: string[];
+export interface GSCPerformanceData {
+  query: string;
+  page?: string;
   clicks: number;
   impressions: number;
   ctr: number;
   position: number;
+  keys: string[]; // For backward compatibility
 }
 
-export interface GSCPerformanceData {
-  rows: GSCPerformanceRow[];
-  responseAggregationType: string;
+export interface GSCCoverageIssue {
+  issueType: string;
+  severity: "error" | "warning";
+  affectedPages: string[];
+  exampleUrl: string;
 }
 
-export interface GSCQueryParams {
-  siteUrl: string;
-  startDate: string;
-  endDate: string;
-  dimensions?: string[];
-  rowLimit?: number;
-  startRow?: number;
+export interface GSCSiteData {
+  totalClicks: number;
+  totalImpressions: number;
+  avgCTR: number;
+  avgPosition: number;
+  topQueries: GSCPerformanceData[];
+  topPages: GSCPerformanceData[];
+  coverageIssues: GSCCoverageIssue[];
+  indexedPages: number;
+  validPages: number;
 }
-
-const GSC_API_BASE = "https://www.googleapis.com/webmasters/v3";
-const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 
 export class GoogleSearchConsoleClient {
-  private clientId: string;
-  private clientSecret: string;
-  private redirectUri: string;
-
-  constructor(config?: { clientId?: string; clientSecret?: string }) {
-    this.clientId = config?.clientId || process.env.GOOGLE_CLIENT_ID || "";
-    this.clientSecret = config?.clientSecret || process.env.GOOGLE_CLIENT_SECRET || "";
-    this.redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
-  }
-
-  // Check if credentials are configured
-  hasCredentials(): boolean {
-    return !!(this.clientId && this.clientSecret);
-  }
-
-  // Generate OAuth URL for user authorization
-  getAuthUrl(storeId: string): string {
-    const params = new URLSearchParams({
-      client_id: this.clientId,
-      redirect_uri: this.redirectUri,
-      response_type: "code",
-      scope: "https://www.googleapis.com/auth/webmasters.readonly",
-      access_type: "offline",
-      prompt: "consent",
-      state: storeId,
-    });
-
-    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
-  }
-
-  // Exchange authorization code for tokens
-  async exchangeCodeForTokens(code: string): Promise<GSCCredentials> {
-    const response = await fetch(OAUTH_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: this.redirectUri,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to exchange code: ${response.statusText}`);
+  private oauth2Client;
+  private searchConsole;
+  
+  constructor(credentials: GSCCredentials) {
+    this.oauth2Client = new google.auth.OAuth2(
+      credentials.clientId,
+      credentials.clientSecret,
+      `${process.env.NEXT_PUBLIC_SITE_URL}/api/auth/gsc/callback`
+    );
+    
+    if (credentials.accessToken) {
+      this.oauth2Client.setCredentials({
+        access_token: credentials.accessToken,
+        refresh_token: credentials.refreshToken,
+      });
     }
-
-    const data = await response.json();
+    
+    this.searchConsole = google.searchconsole({ version: "v1", auth: this.oauth2Client });
+  }
+  
+  getAuthUrl(state: string): string {
+    return this.oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: [
+        "https://www.googleapis.com/auth/webmasters.readonly",
+        "https://www.googleapis.com/auth/webmasters",
+      ],
+      state,
+      prompt: "consent",
+    });
+  }
+  
+  async getTokens(code: string) {
+    const { tokens } = await this.oauth2Client.getToken(code);
+    this.oauth2Client.setCredentials(tokens);
+    
     return {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      accessToken: tokens.access_token!,
+      refreshToken: tokens.refresh_token!,
+      expiresAt: new Date(tokens.expiry_date || Date.now() + 3600000),
     };
+  }
+
+  // Alias for backward compatibility
+  async exchangeCodeForTokens(code: string) {
+    return this.getTokens(code);
   }
 
   // Refresh access token
-  async refreshAccessToken(refreshToken: string): Promise<GSCCredentials> {
-    const response = await fetch(OAUTH_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: this.clientId,
-        client_secret: this.clientSecret,
-        refresh_token: refreshToken,
-        grant_type: "refresh_token",
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to refresh token: ${response.statusText}`);
-    }
-
-    const data = await response.json();
+  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresAt: Date }> {
+    this.oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const { credentials } = await this.oauth2Client.refreshAccessToken();
     return {
-      accessToken: data.access_token,
-      refreshToken: refreshToken,
-      expiresAt: new Date(Date.now() + data.expires_in * 1000),
+      accessToken: credentials.access_token!,
+      expiresAt: new Date(credentials.expiry_date || Date.now() + 3600000),
     };
   }
+  
+  async listSites() {
+    const response = await this.searchConsole.sites.list();
+    return response.data.siteEntry || [];
+  }
 
-  // Get list of sites in GSC
-  async getSites(accessToken: string): Promise<string[]> {
-    const response = await fetch(`${GSC_API_BASE}/sites`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+  // Alias for backward compatibility
+  async getSites(accessToken?: string) {
+    const sites = await this.listSites();
+    return sites.map((s) => s.siteUrl || "");
+  }
 
-    if (!response.ok) {
-      throw new Error(`Failed to get sites: ${response.statusText}`);
+  // Helper methods for backward compatibility with analytics.ts
+  async getTopQueries(accessToken: string, siteUrl: string, days: number) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return this.getPerformanceData(siteUrl, startDate, endDate, ["query"]);
+  }
+
+  async getTopPages(accessToken: string, siteUrl: string, days: number) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return this.getPerformanceData(siteUrl, startDate, endDate, ["page"]);
+  }
+
+  async getPerformanceByDate(accessToken: string, siteUrl: string, days: number) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return this.getPerformanceData(siteUrl, startDate, endDate, ["date"]);
+  }
+
+  async getPerformanceByCountry(accessToken: string, siteUrl: string, days: number) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return this.getPerformanceData(siteUrl, startDate, endDate, ["country"]);
+  }
+
+  async getPerformanceByDevice(accessToken: string, siteUrl: string, days: number) {
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return this.getPerformanceData(siteUrl, startDate, endDate, ["device"]);
+  }
+  
+  async getPerformanceData(
+    siteUrl: string,
+    startDate: string,
+    endDate: string,
+    dimensions: string[] = ["query"]
+  ): Promise<GSCPerformanceData[]> {
+    try {
+      const response = await this.searchConsole.searchanalytics.query({
+        siteUrl,
+        requestBody: {
+          startDate,
+          endDate,
+          dimensions,
+          rowLimit: 1000,
+        },
+      });
+      
+      return (response.data.rows || []).map((row) => ({
+        query: dimensions.includes("query") ? row.keys?.[dimensions.indexOf("query")] || "" : "",
+        page: dimensions.includes("page") ? row.keys?.[dimensions.indexOf("page")] || undefined : undefined,
+        clicks: row.clicks || 0,
+        impressions: row.impressions || 0,
+        ctr: row.ctr || 0,
+        position: row.position || 0,
+        keys: row.keys || [], // Preserve for backward compatibility
+      }));
+    } catch (error) {
+      console.error("GSC performance data error:", error);
+      return [];
     }
-
-    const data = await response.json();
-    return (data.siteEntry || []).map((site: { siteUrl: string }) => site.siteUrl);
   }
-
-  // Fetch search analytics data
-  async getSearchAnalytics(
-    accessToken: string,
-    params: GSCQueryParams
-  ): Promise<GSCPerformanceData> {
-    const encodedSiteUrl = encodeURIComponent(params.siteUrl);
-    const url = `${GSC_API_BASE}/sites/${encodedSiteUrl}/searchAnalytics/query`;
-
-    const body = {
-      startDate: params.startDate,
-      endDate: params.endDate,
-      dimensions: params.dimensions || ["query", "page"],
-      rowLimit: params.rowLimit || 1000,
-      startRow: params.startRow || 0,
-    };
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to get search analytics: ${response.statusText}`);
+  
+  async getCoverageStatus(siteUrl: string) {
+    try {
+      const response = await this.searchConsole.urlInspection.index.inspect({
+        requestBody: {
+          inspectionUrl: siteUrl,
+          siteUrl,
+        },
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error("GSC coverage error:", error);
+      return null;
     }
-
-    return response.json();
   }
-
-  // Get top queries
-  async getTopQueries(
-    accessToken: string,
-    siteUrl: string,
-    days: number = 28
-  ): Promise<GSCPerformanceRow[]> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const data = await this.getSearchAnalytics(accessToken, {
-      siteUrl,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      dimensions: ["query"],
-      rowLimit: 100,
-    });
-
-    return data.rows || [];
+  
+  async getSitemaps(siteUrl: string) {
+    try {
+      const response = await this.searchConsole.sitemaps.list({ siteUrl });
+      return response.data.sitemap || [];
+    } catch (error) {
+      console.error("GSC sitemaps error:", error);
+      return [];
+    }
   }
-
-  // Get top pages
-  async getTopPages(
-    accessToken: string,
-    siteUrl: string,
-    days: number = 28
-  ): Promise<GSCPerformanceRow[]> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const data = await this.getSearchAnalytics(accessToken, {
-      siteUrl,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      dimensions: ["page"],
-      rowLimit: 100,
-    });
-
-    return data.rows || [];
-  }
-
-  // Get performance by date
-  async getPerformanceByDate(
-    accessToken: string,
-    siteUrl: string,
-    days: number = 28
-  ): Promise<GSCPerformanceRow[]> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const data = await this.getSearchAnalytics(accessToken, {
-      siteUrl,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      dimensions: ["date"],
-      rowLimit: days,
-    });
-
-    return data.rows || [];
-  }
-
-  // Get performance by country
-  async getPerformanceByCountry(
-    accessToken: string,
-    siteUrl: string,
-    days: number = 28
-  ): Promise<GSCPerformanceRow[]> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const data = await this.getSearchAnalytics(accessToken, {
-      siteUrl,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      dimensions: ["country"],
-      rowLimit: 50,
-    });
-
-    return data.rows || [];
-  }
-
-  // Get performance by device
-  async getPerformanceByDevice(
-    accessToken: string,
-    siteUrl: string,
-    days: number = 28
-  ): Promise<GSCPerformanceRow[]> {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const data = await this.getSearchAnalytics(accessToken, {
-      siteUrl,
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      dimensions: ["device"],
-      rowLimit: 10,
-    });
-
-    return data.rows || [];
+  
+  async submitSitemap(siteUrl: string, sitemapUrl: string) {
+    try {
+      await this.searchConsole.sitemaps.submit({
+        siteUrl,
+        feedpath: sitemapUrl,
+      });
+      return true;
+    } catch (error) {
+      console.error("GSC sitemap submission error:", error);
+      return false;
+    }
   }
 }
 
-// Simulated GSC data for demo/development
-export function generateSimulatedGSCData(days: number = 28): {
-  queries: GSCPerformanceRow[];
-  pages: GSCPerformanceRow[];
-  dates: GSCPerformanceRow[];
-  countries: GSCPerformanceRow[];
-  devices: GSCPerformanceRow[];
-} {
-  const sampleQueries = [
-    "buy leather boots online",
-    "best winter jacket",
-    "running shoes sale",
-    "outdoor hiking gear",
-    "waterproof backpack",
-    "camping equipment",
-    "fitness tracker watch",
-    "wireless headphones",
-    "yoga mat reviews",
-    "protein powder organic",
-  ];
-
-  const samplePages = [
-    "/products/leather-boots",
-    "/products/winter-jacket",
-    "/collections/running-shoes",
-    "/blog/hiking-guide",
-    "/products/backpack-waterproof",
-    "/collections/camping",
-    "/products/fitness-tracker",
-    "/products/headphones",
-    "/blog/yoga-beginners",
-    "/products/protein-powder",
-  ];
-
-  const queries: GSCPerformanceRow[] = sampleQueries.map((query, i) => ({
-    keys: [query],
-    clicks: Math.floor(Math.random() * 500) + 50,
-    impressions: Math.floor(Math.random() * 5000) + 500,
-    ctr: Math.random() * 0.15 + 0.02,
-    position: Math.random() * 30 + 1,
-  }));
-
-  const pages: GSCPerformanceRow[] = samplePages.map((page, i) => ({
-    keys: [page],
-    clicks: Math.floor(Math.random() * 300) + 30,
-    impressions: Math.floor(Math.random() * 3000) + 300,
-    ctr: Math.random() * 0.12 + 0.01,
-    position: Math.random() * 25 + 1,
-  }));
-
-  const dates: GSCPerformanceRow[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    dates.push({
-      keys: [date.toISOString().split("T")[0]],
-      clicks: Math.floor(Math.random() * 200) + 50 + Math.sin(i / 7) * 30,
-      impressions: Math.floor(Math.random() * 2000) + 500,
-      ctr: Math.random() * 0.1 + 0.03,
-      position: Math.random() * 5 + 12,
-    });
+export function createGSCClient(credentials?: GSCCredentials): GoogleSearchConsoleClient | null {
+  const clientId = credentials?.clientId || process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = credentials?.clientSecret || process.env.GOOGLE_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    return null;
   }
-
-  const countries: GSCPerformanceRow[] = [
-    { keys: ["usa"], clicks: 850, impressions: 12000, ctr: 0.071, position: 14.2 },
-    { keys: ["gbr"], clicks: 320, impressions: 4500, ctr: 0.071, position: 15.8 },
-    { keys: ["can"], clicks: 180, impressions: 2800, ctr: 0.064, position: 16.3 },
-    { keys: ["aus"], clicks: 145, impressions: 2100, ctr: 0.069, position: 17.1 },
-    { keys: ["deu"], clicks: 95, impressions: 1400, ctr: 0.068, position: 18.5 },
-  ];
-
-  const devices: GSCPerformanceRow[] = [
-    { keys: ["MOBILE"], clicks: 980, impressions: 15000, ctr: 0.065, position: 15.2 },
-    { keys: ["DESKTOP"], clicks: 520, impressions: 6500, ctr: 0.08, position: 13.8 },
-    { keys: ["TABLET"], clicks: 90, impressions: 1200, ctr: 0.075, position: 16.1 },
-  ];
-
-  return { queries, pages, dates, countries, devices };
-}
-
-// Factory function - creates client with optional per-store credentials
-export function getGSCClient(config?: { clientId?: string; clientSecret?: string }): GoogleSearchConsoleClient {
-  return new GoogleSearchConsoleClient(config);
-}
-
-// Create client with credentials from store
-export async function getGSCClientForStore(storeId: string): Promise<GoogleSearchConsoleClient> {
-  // Import dynamically to avoid circular deps
-  const { getEffectiveCredentials } = await import("@/lib/actions/api-credentials");
-  const creds = await getEffectiveCredentials(storeId);
   
   return new GoogleSearchConsoleClient({
-    clientId: creds.googleClientId || undefined,
-    clientSecret: creds.googleClientSecret || undefined,
+    clientId,
+    clientSecret,
+    accessToken: credentials?.accessToken,
+    refreshToken: credentials?.refreshToken,
   });
+}
+
+// Alias for backward compatibility
+export const getGSCClient = createGSCClient;
+
+// Type alias for backward compatibility
+export type GSCPerformanceRow = GSCPerformanceData;
+
+// Get GSC client for a specific store
+export async function getGSCClientForStore(storeId: string): Promise<GoogleSearchConsoleClient> {
+  const { createClient } = await import("@/lib/supabase/server");
+  const supabase = await createClient();
+  
+  const { data: connection } = await supabase
+    .from("gsc_connections")
+    .select("*")
+    .eq("store_id", storeId)
+    .single();
+
+  if (!connection) {
+    throw new Error("GSC not connected");
+  }
+
+  const client = createGSCClient({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    accessToken: connection.access_token,
+    refreshToken: connection.refresh_token,
+  });
+
+  if (!client) {
+    throw new Error("Failed to create GSC client");
+  }
+
+  return client;
+}
+
+// Generate simulated GSC data for testing
+export function generateSimulatedGSCData(days: number = 30): { dates: GSCPerformanceData[]; queries: GSCPerformanceData[]; pages: GSCPerformanceData[]; countries: GSCPerformanceData[]; devices: GSCPerformanceData[] } {
+  const dates: GSCPerformanceData[] = [];
+  const queries: GSCPerformanceData[] = [];
+  const pages: GSCPerformanceData[] = [];
+  const countries: GSCPerformanceData[] = [];
+  const devices: GSCPerformanceData[] = [];
+
+  const keywords = ["seo tools", "wordpress seo", "woocommerce optimization", "keyword research"];
+
+  for (let i = 0; i < days; i++) {
+    const date = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    dates.push({
+      query: date,
+      keys: [date],
+      clicks: Math.floor(Math.random() * 500) + 100,
+      impressions: Math.floor(Math.random() * 5000) + 1000,
+      ctr: Math.random() * 0.1,
+      position: Math.random() * 20 + 1,
+    });
+  }
+
+  for (const keyword of keywords) {
+    queries.push({
+      query: keyword,
+      keys: [keyword],
+      clicks: Math.floor(Math.random() * 100),
+      impressions: Math.floor(Math.random() * 1000) + 100,
+      ctr: Math.random() * 0.1,
+      position: Math.random() * 20 + 1,
+    });
+  }
+
+  pages.push({
+    page: "/",
+    query: "/",
+    keys: ["/"],
+    clicks: Math.floor(Math.random() * 200),
+    impressions: Math.floor(Math.random() * 2000),
+    ctr: Math.random() * 0.1,
+    position: 5,
+  });
+
+  countries.push({
+    query: "US",
+    keys: ["US"],
+    clicks: Math.floor(Math.random() * 400),
+    impressions: Math.floor(Math.random() * 4000),
+    ctr: Math.random() * 0.1,
+    position: 10,
+  });
+
+  devices.push(
+    {
+      query: "MOBILE",
+      keys: ["MOBILE"],
+      clicks: Math.floor(Math.random() * 300),
+      impressions: Math.floor(Math.random() * 3000),
+      ctr: Math.random() * 0.1,
+      position: 8,
+    },
+    {
+      query: "DESKTOP",
+      keys: ["DESKTOP"],
+      clicks: Math.floor(Math.random() * 200),
+      impressions: Math.floor(Math.random() * 2000),
+      ctr: Math.random() * 0.1,
+      position: 12,
+    }
+  );
+
+  return { dates, queries, pages, countries, devices };
 }

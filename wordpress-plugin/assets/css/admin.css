@@ -1,0 +1,114 @@
+/* SEO Max Admin Styles */
+
+.seo-max-container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+.seo-max-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #0073aa;
+    color: white;
+    font-size: 12px;
+    cursor: help;
+    margin-left: 5px;
+}
+
+.seo-max-counter {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border-radius: 3px;
+}
+
+.seo-max-counter.over-limit {
+    background: #dc3232;
+    color: white;
+}
+
+.seo-max-score-circle {
+    position: relative;
+}
+
+.seo-max-suggestions {
+    margin-top: 15px;
+}
+
+.seo-max-suggestions ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.seo-max-suggestions li {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-left: 4px solid #ddd;
+    background: #f9f9f9;
+    border-radius: 4px;
+}
+
+.seo-max-suggestions li.suggestion-error {
+    border-left-color: #dc3232;
+}
+
+.seo-max-suggestions li.suggestion-warning {
+    border-left-color: #ffb900;
+}
+
+.seo-max-suggestions li.suggestion-improvement {
+    border-left-color: #0073aa;
+}
+
+.seo-max-product-meta .form-field {
+    margin-bottom: 15px;
+}
+
+.seo-max-product-meta label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.seo-max-stat-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    text-align: center;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.check-item:last-child {
+    border-bottom: none;
+}
+
+.check-item.pending .check-icon {
+    color: #ccc;
+}
+
+.check-item.passed .check-icon {
+    color: #46b450;
+}
+
+.check-item.failed .check-icon {
+    color: #dc3232;
+}
+
+.check-icon {
+    font-size: 18px;
+    font-weight: bold;
+}

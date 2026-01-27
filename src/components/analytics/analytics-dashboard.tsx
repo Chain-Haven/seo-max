@@ -218,14 +218,14 @@ export function AnalyticsDashboard({
                   key={i}
                   className="flex-1 bg-primary/80 rounded-t hover:bg-primary transition-colors cursor-pointer"
                   style={{ height: `${Math.max(height, 2)}%` }}
-                  title={`${d.keys[0]}: ${d.clicks} clicks`}
+                  title={`${d.query || d.page || 'Unknown'}: ${d.clicks} clicks`}
                 />
               );
             })}
           </div>
           <div className="flex justify-between text-xs text-muted-foreground mt-2">
-            <span>{data.dates[0]?.keys[0]}</span>
-            <span>{data.dates[data.dates.length - 1]?.keys[0]}</span>
+            <span>{data.dates[0]?.query || data.dates[0]?.page || 'Start'}</span>
+            <span>{data.dates[data.dates.length - 1]?.query || data.dates[data.dates.length - 1]?.page || 'End'}</span>
           </div>
         </CardContent>
       </Card>
@@ -261,7 +261,7 @@ export function AnalyticsDashboard({
                 <TableBody>
                   {data.queries.slice(0, 20).map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-medium">{row.keys[0]}</TableCell>
+                      <TableCell className="font-medium">{row.query}</TableCell>
                       <TableCell className="text-right">{row.clicks}</TableCell>
                       <TableCell className="text-right">{row.impressions}</TableCell>
                       <TableCell className="text-right">{(row.ctr * 100).toFixed(2)}%</TableCell>
@@ -298,12 +298,12 @@ export function AnalyticsDashboard({
                     <TableRow key={i}>
                       <TableCell className="font-medium max-w-xs truncate">
                         <a
-                          href={row.keys[0]}
+                          href={row.page || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 hover:text-primary"
                         >
-                          {row.keys[0].replace(/^https?:\/\/[^/]+/, "")}
+                          {(row.page || '').replace(/^https?:\/\/[^/]+/, "")}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </TableCell>
@@ -337,7 +337,7 @@ export function AnalyticsDashboard({
                 <TableBody>
                   {data.countries.map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-medium uppercase">{row.keys[0]}</TableCell>
+                      <TableCell className="font-medium uppercase">{row.query || row.page}</TableCell>
                       <TableCell className="text-right">{row.clicks}</TableCell>
                       <TableCell className="text-right">{row.impressions}</TableCell>
                       <TableCell className="text-right">{(row.ctr * 100).toFixed(2)}%</TableCell>
@@ -357,7 +357,8 @@ export function AnalyticsDashboard({
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-3">
                 {data.devices.map((device, i) => {
-                  const Icon = device.keys[0] === "MOBILE" ? Smartphone : Monitor;
+                  const deviceType = device.query || device.page || '';
+                  const Icon = deviceType.toLowerCase().includes("mobile") ? Smartphone : Monitor;
                   const totalClicks = data.devices.reduce((sum, d) => sum + d.clicks, 0);
                   const percentage = totalClicks > 0 ? (device.clicks / totalClicks) * 100 : 0;
 
@@ -366,7 +367,7 @@ export function AnalyticsDashboard({
                       <CardContent className="pt-4">
                         <div className="flex items-center gap-3 mb-3">
                           <Icon className="h-6 w-6 text-muted-foreground" />
-                          <span className="font-medium capitalize">{device.keys[0].toLowerCase()}</span>
+                          <span className="font-medium capitalize">{(device.query || device.page || 'Unknown').toLowerCase()}</span>
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">

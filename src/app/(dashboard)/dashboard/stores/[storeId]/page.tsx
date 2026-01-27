@@ -33,6 +33,9 @@ import {
   Target,
   Copy,
   DollarSign,
+  MapPin,
+  Layers,
+  Code,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -298,13 +301,65 @@ export default async function StoreDetailPage({ params }: Props) {
           </Card>
         </Link>
         <Link href={`/dashboard/stores/${storeId}/speed`}>
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-green-500/30 bg-green-500/5">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <Gauge className="h-5 w-5 text-green-500" />
                 <div>
                   <p className="font-medium text-sm">Speed</p>
                   <p className="text-xs text-muted-foreground">Core Web Vitals</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/links`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <LinkIcon className="h-5 w-5 text-indigo-500" />
+                <div>
+                  <p className="font-medium text-sm">Links</p>
+                  <p className="text-xs text-muted-foreground">Broken/Orphans</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/local`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <MapPin className="h-5 w-5 text-pink-500" />
+                <div>
+                  <p className="font-medium text-sm">Local SEO</p>
+                  <p className="text-xs text-muted-foreground">GMB & NAP</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/bulk`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Layers className="h-5 w-5 text-cyan-500" />
+                <div>
+                  <p className="font-medium text-sm">Bulk Ops</p>
+                  <p className="text-xs text-muted-foreground">Mass updates</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/schema`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Code className="h-5 w-5 text-amber-500" />
+                <div>
+                  <p className="font-medium text-sm">Schema</p>
+                  <p className="text-xs text-muted-foreground">Structured data</p>
                 </div>
               </div>
             </CardContent>
