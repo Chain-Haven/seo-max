@@ -49,6 +49,8 @@ import {
   Zap,
   Plus,
   X,
+  Rocket,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { saveBlogPost, publishToWordPress } from "@/lib/actions/blog";
@@ -63,6 +65,7 @@ import {
   fetchPeopleAlsoAsk,
   improveArticle,
 } from "@/lib/actions/enhanced-blog";
+import { autoImproveToTargetScore } from "@/lib/actions/auto-improve-blog";
 import type { SerpAnalysis, ContentAnalysis } from "@/lib/ai/competitor-analysis";
 import type { ContentScore } from "@/lib/ai/content-scoring";
 import type { TemplateInfo, ArticleTemplate } from "@/lib/ai/content-templates";
@@ -117,6 +120,13 @@ export function EnhancedBlogCreator({
   // Step 5: Review
   const [title, setTitle] = useState("");
   const [metaTitle, setMetaTitle] = useState("");
+
+  // Auto-Improve to 90+ state
+  const [isAutoImproving, setIsAutoImproving] = useState(false);
+  const [autoImproveProgress, setAutoImproveProgress] = useState(0);
+  const [autoImproveIteration, setAutoImproveIteration] = useState(0);
+  const [autoImproveCurrentScore, setAutoImproveCurrentScore] = useState(0);
+  const [autoImproveMessage, setAutoImproveMessage] = useState("");
 
   // Load templates on mount
   useEffect(() => {
@@ -282,7 +292,7 @@ export function EnhancedBlogCreator({
     }
   };
 
-  // Improve content based on suggestions
+  // Improve content based on suggestions (single pass)
   const handleImproveContent = async () => {
     if (!contentScore || contentScore.suggestions.length === 0) return;
     
@@ -303,6 +313,86 @@ export function EnhancedBlogCreator({
     } finally {
       setIsLoading(false);
       setLoadingMessage("");
+    }
+  };
+
+  // Auto-Improve to 90+ SEO score
+  const handleAutoImproveTo90 = async () => {
+    if (!content || !keyword) {
+      toast.error("Content and keyword are required");
+      return;
+    }
+
+    setIsAutoImproving(true);
+    setAutoImproveProgress(0);
+    setAutoImproveIteration(0);
+    setAutoImproveCurrentScore(contentScore?.overall || 0);
+    setAutoImproveMessage("Starting optimization...");
+
+    try {
+      const result = await autoImproveToTargetScore(
+        content,
+        title,
+        metaTitle,
+        metaDescription,
+        [keyword],
+        {
+          targetScore: 90,
+          maxIterations: 10,
+        }
+      );
+
+      if (result.success) {
+        // Update all content
+        setContent(result.content);
+        setTitle(result.title);
+        setMetaTitle(result.metaTitle);
+        setMetaDescription(result.metaDescription);
+        
+        // Update score
+        setContentScore({
+          overall: result.finalScore.overall,
+          grade: result.finalScore.grade,
+          breakdown: result.finalScore.breakdown,
+          suggestions: result.finalScore.prioritizedRecommendations,
+        });
+
+        toast.success(`SEO score optimized to ${result.finalScore.overall}!`, {
+          description: `${result.improvements.length} improvements made in ${result.iterations} iterations.`,
+        });
+
+        // Show what was added
+        if (result.addedFeatures.length > 0) {
+          toast.info("New features added", {
+            description: result.addedFeatures.join(", "),
+          });
+        }
+      } else {
+        toast.error("Could not reach target score", {
+          description: `Best score achieved: ${result.finalScore.overall}. ${result.error || ""}`,
+        });
+        
+        // Still update with the improved content
+        setContent(result.content);
+        setTitle(result.title);
+        setMetaTitle(result.metaTitle);
+        setMetaDescription(result.metaDescription);
+        
+        setContentScore({
+          overall: result.finalScore.overall,
+          grade: result.finalScore.grade,
+          breakdown: result.finalScore.breakdown,
+          suggestions: result.finalScore.prioritizedRecommendations,
+        });
+      }
+    } catch (error) {
+      console.error("Auto-improve error:", error);
+      toast.error("Auto-improve failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      });
+    } finally {
+      setIsAutoImproving(false);
+      setAutoImproveMessage("");
     }
   };
 
@@ -848,11 +938,52 @@ export function EnhancedBlogCreator({
                         size="sm"
                         className="w-full mt-2"
                         onClick={handleImproveContent}
-                        disabled={isLoading}
+                        disabled={isLoading || isAutoImproving}
                       >
                         <Wand2 className="mr-2 h-4 w-4" />
-                        Auto-Improve
+                        Quick Improve
                       </Button>
+                    </div>
+                  )}
+
+                  {/* Auto-Improve to 90+ */}
+                  {contentScore.overall < 90 && (
+                    <div className="pt-2 border-t">
+                      <Button
+                        size="sm"
+                        className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
+                        onClick={handleAutoImproveTo90}
+                        disabled={isLoading || isAutoImproving}
+                      >
+                        {isAutoImproving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {autoImproveMessage}
+                          </>
+                        ) : (
+                          <>
+                            <Rocket className="mr-2 h-4 w-4" />
+                            Auto-Improve to 90+
+                          </>
+                        )}
+                      </Button>
+                      {isAutoImproving && (
+                        <div className="mt-2">
+                          <Progress value={autoImproveProgress} className="h-1" />
+                          <p className="text-xs text-muted-foreground mt-1 text-center">
+                            Iteration {autoImproveIteration} • Score: {Math.round(autoImproveCurrentScore)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {contentScore.overall >= 90 && (
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center gap-2 text-green-600 justify-center p-2 bg-green-500/10 rounded-lg">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-sm font-medium">SEO Optimized!</span>
+                      </div>
                     </div>
                   )}
 
