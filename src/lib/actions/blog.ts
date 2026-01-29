@@ -216,7 +216,7 @@ export async function getBlogPost(postId: string) {
   return { data, error: null };
 }
 
-// Publish blog post to WordPress
+// Publish blog post to WordPress with enhanced SEO data
 export async function publishToWordPress(storeId: string, postId: string) {
   const supabase = await createClient();
 
@@ -234,7 +234,7 @@ export async function publishToWordPress(storeId: string, postId: string) {
   // Get store and API key
   const { data: store } = await supabase
     .from("stores")
-    .select("url")
+    .select("url, name")
     .eq("id", storeId)
     .single();
 
@@ -248,7 +248,26 @@ export async function publishToWordPress(storeId: string, postId: string) {
     return { success: false, error: "Store not configured" };
   }
 
-  // Send to WordPress
+  // Build comprehensive SEO data payload
+  const seoData = post.seo_data || {};
+  const schemaMarkup = post.schema_markup || {};
+
+  // Generate Open Graph and Twitter meta if not already present
+  const openGraph = seoData.openGraph || {
+    ogTitle: post.meta_title || post.title,
+    ogDescription: post.meta_description || "",
+    ogType: "article",
+    ogSiteName: store.name,
+    ogLocale: "en_US",
+  };
+
+  const twitterCard = seoData.twitterCard || {
+    twitterCard: "summary_large_image",
+    twitterTitle: post.meta_title || post.title,
+    twitterDescription: post.meta_description || "",
+  };
+
+  // Send to WordPress with full SEO data
   const webhookUrl = `${store.url}/wp-json/seo-max/v1/webhook`;
 
   try {
@@ -261,12 +280,44 @@ export async function publishToWordPress(storeId: string, postId: string) {
       body: JSON.stringify({
         action: "create_blog_post",
         data: {
+          // Basic content
           title: post.title,
           content: post.content,
+          status: "publish",
+          
+          // Meta SEO
           meta_title: post.meta_title,
           meta_description: post.meta_description,
-          schema_markup: post.schema_markup,
-          status: "publish",
+          
+          // Schema markup
+          schema_markup: schemaMarkup.schemas || schemaMarkup,
+          schema_script: schemaMarkup.script,
+          
+          // Open Graph
+          og_title: openGraph.ogTitle,
+          og_description: openGraph.ogDescription,
+          og_image: openGraph.ogImage,
+          og_type: openGraph.ogType,
+          
+          // Twitter Card
+          twitter_card: twitterCard.twitterCard,
+          twitter_title: twitterCard.twitterTitle,
+          twitter_description: twitterCard.twitterDescription,
+          twitter_image: twitterCard.twitterImage,
+          
+          // Additional SEO data
+          featured_image: post.featured_image,
+          author_name: post.author_name,
+          author_bio: post.author_bio,
+          categories: post.categories,
+          tags: post.tags,
+          keywords: seoData.keywords || [],
+          
+          // Table of Contents (if WordPress theme supports it)
+          table_of_contents: seoData.tableOfContents,
+          
+          // E-E-A-T signals
+          eeat_signals: seoData.eeat,
         },
       }),
     });

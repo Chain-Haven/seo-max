@@ -199,13 +199,100 @@ class SEO_Max_SEO_Updater {
             $this->set_meta_description($post_id, $data['meta_description']);
         }
         
-        // Set schema markup
+        // Set schema markup (enhanced)
         if (isset($data['schema_markup'])) {
             update_post_meta($post_id, '_seo_max_schema', $data['schema_markup']);
         }
+        if (isset($data['schema_script'])) {
+            update_post_meta($post_id, '_seo_max_schema_script', $data['schema_script']);
+        }
+        
+        // Set Open Graph data
+        if (isset($data['og_title'])) {
+            $this->set_og_title($post_id, $data['og_title']);
+        }
+        if (isset($data['og_description'])) {
+            $this->set_og_description($post_id, $data['og_description']);
+        }
+        if (isset($data['og_image'])) {
+            update_post_meta($post_id, '_seo_max_og_image', esc_url_raw($data['og_image']));
+            // Also try to set with SEO plugins
+            if (defined('WPSEO_VERSION')) {
+                update_post_meta($post_id, '_yoast_wpseo_opengraph-image', $data['og_image']);
+            }
+            if (class_exists('RankMath')) {
+                update_post_meta($post_id, 'rank_math_facebook_image', $data['og_image']);
+            }
+        }
+        
+        // Set Twitter Card data
+        if (isset($data['twitter_title'])) {
+            update_post_meta($post_id, '_seo_max_twitter_title', sanitize_text_field($data['twitter_title']));
+            if (defined('WPSEO_VERSION')) {
+                update_post_meta($post_id, '_yoast_wpseo_twitter-title', $data['twitter_title']);
+            }
+            if (class_exists('RankMath')) {
+                update_post_meta($post_id, 'rank_math_twitter_title', $data['twitter_title']);
+            }
+        }
+        if (isset($data['twitter_description'])) {
+            update_post_meta($post_id, '_seo_max_twitter_description', sanitize_textarea_field($data['twitter_description']));
+            if (defined('WPSEO_VERSION')) {
+                update_post_meta($post_id, '_yoast_wpseo_twitter-description', $data['twitter_description']);
+            }
+            if (class_exists('RankMath')) {
+                update_post_meta($post_id, 'rank_math_twitter_description', $data['twitter_description']);
+            }
+        }
+        if (isset($data['twitter_image'])) {
+            update_post_meta($post_id, '_seo_max_twitter_image', esc_url_raw($data['twitter_image']));
+            if (defined('WPSEO_VERSION')) {
+                update_post_meta($post_id, '_yoast_wpseo_twitter-image', $data['twitter_image']);
+            }
+            if (class_exists('RankMath')) {
+                update_post_meta($post_id, 'rank_math_twitter_image', $data['twitter_image']);
+            }
+        }
+        
+        // Set author info
+        if (isset($data['author_name'])) {
+            update_post_meta($post_id, '_seo_max_author_name', sanitize_text_field($data['author_name']));
+        }
+        if (isset($data['author_bio'])) {
+            update_post_meta($post_id, '_seo_max_author_bio', sanitize_textarea_field($data['author_bio']));
+        }
+        
+        // Set keywords for SEO plugins
+        if (isset($data['keywords']) && is_array($data['keywords'])) {
+            $keywords_str = implode(', ', array_map('sanitize_text_field', $data['keywords']));
+            update_post_meta($post_id, '_seo_max_keywords', $keywords_str);
+            if (class_exists('RankMath')) {
+                update_post_meta($post_id, 'rank_math_focus_keyword', $data['keywords'][0] ?? '');
+            }
+            if (defined('WPSEO_VERSION')) {
+                update_post_meta($post_id, '_yoast_wpseo_focuskw', $data['keywords'][0] ?? '');
+            }
+        }
+        
+        // Set tags
+        if (isset($data['tags']) && is_array($data['tags'])) {
+            wp_set_post_tags($post_id, array_map('sanitize_text_field', $data['tags']));
+        }
+        
+        // Set Table of Contents data
+        if (isset($data['table_of_contents'])) {
+            update_post_meta($post_id, '_seo_max_toc', $data['table_of_contents']);
+        }
+        
+        // Set E-E-A-T signals
+        if (isset($data['eeat_signals'])) {
+            update_post_meta($post_id, '_seo_max_eeat', $data['eeat_signals']);
+        }
         
         // Set featured image if provided
-        if (isset($data['featured_image_url'])) {
+        if (isset($data['featured_image'])) {
+            $this->set_featured_image_from_url($post_id, $data['featured_image']);
+        } elseif (isset($data['featured_image_url'])) {
             $this->set_featured_image_from_url($post_id, $data['featured_image_url']);
         }
         
@@ -218,6 +305,36 @@ class SEO_Max_SEO_Updater {
             'post_id' => $post_id,
             'url' => get_permalink($post_id),
         );
+    }
+    
+    /**
+     * Set Open Graph title (compatible with major SEO plugins)
+     */
+    private function set_og_title($post_id, $title) {
+        $title = sanitize_text_field($title);
+        update_post_meta($post_id, '_seo_max_og_title', $title);
+        
+        if (defined('WPSEO_VERSION')) {
+            update_post_meta($post_id, '_yoast_wpseo_opengraph-title', $title);
+        }
+        if (class_exists('RankMath')) {
+            update_post_meta($post_id, 'rank_math_facebook_title', $title);
+        }
+    }
+    
+    /**
+     * Set Open Graph description (compatible with major SEO plugins)
+     */
+    private function set_og_description($post_id, $description) {
+        $description = sanitize_textarea_field($description);
+        update_post_meta($post_id, '_seo_max_og_description', $description);
+        
+        if (defined('WPSEO_VERSION')) {
+            update_post_meta($post_id, '_yoast_wpseo_opengraph-description', $description);
+        }
+        if (class_exists('RankMath')) {
+            update_post_meta($post_id, 'rank_math_facebook_description', $description);
+        }
     }
     
     /**
