@@ -194,6 +194,9 @@ export async function chatWithRoboJacob(
   userMessage: string,
   conversationHistory: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<{ data: string | null; error: string | null }> {
+  // #region agent log
+  console.log("[DEBUG] chatWithRoboJacob called", { storeId, messageLength: userMessage.length, historyLength: conversationHistory.length });
+  // #endregion
   const supabase = await createClient();
   const {
     data: { user },
@@ -201,6 +204,9 @@ export async function chatWithRoboJacob(
   if (!user) return { data: null, error: "Not authenticated" };
 
   const { data: context, error: ctxError } = await getStoreContext(storeId);
+  // #region agent log
+  console.log("[DEBUG] Context loaded", { hasContext: !!context, ctxError });
+  // #endregion
   if (ctxError || !context) return { data: null, error: ctxError ?? "Could not load store context" };
 
   const contextBlock = formatContextForPrompt(context);
@@ -217,8 +223,14 @@ export async function chatWithRoboJacob(
       temperature: 0.7,
       maxTokens: 1024,
     });
+    // #region agent log
+    console.log("[DEBUG] AI response received", { hasContent: !!result.content, contentLength: result.content?.length || 0 });
+    // #endregion
     return { data: result.content?.trim() ?? null, error: null };
   } catch (e) {
+    // #region agent log
+    console.error("[DEBUG] AI error", { error: e instanceof Error ? e.message : String(e) });
+    // #endregion
     console.error("chatWithRoboJacob error:", e);
     return {
       data: null,

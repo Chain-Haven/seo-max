@@ -8,6 +8,12 @@ interface ApplyResult {
   error?: string;
 }
 
+// #region agent log helper
+function debugLog(data: Record<string, unknown>) {
+  console.log("[DEBUG]", JSON.stringify({ ...data, timestamp: Date.now() }));
+}
+// #endregion
+
 /**
  * Apply an SEO improvement to the WordPress site via the plugin webhook.
  * This sends the improvement data to the WordPress site which then applies the changes.
@@ -16,6 +22,9 @@ export async function applyImprovementToWordPress(
   storeId: string,
   improvementId: string
 ): Promise<ApplyResult> {
+  // #region agent log
+  debugLog({location:'apply-improvements.ts:applyImprovementToWordPress',message:'Function called',data:{storeId,improvementId},hypothesisId:'C'});
+  // #endregion
   const supabase = await createClient();
   const {
     data: { user },
@@ -73,10 +82,23 @@ export async function applyImprovementToWordPress(
     // Send to WordPress plugin
     const webhookUrl = `${store.url}/wp-json/seo-max/v1/apply-improvement`;
 
+    // #region agent log
+    debugLog({location:'apply-improvements.ts:applyImprovementToWordPress',message:'Sending webhook to WordPress',data:{webhookUrl,improvementType:improvement.improvement_type},hypothesisId:'C'});
+    // #endregion
+
+    // Get the full API key for authentication
+    const { data: apiKeyData } = await serviceClient
+      .from("api_keys")
+      .select("key_hash")
+      .eq("id", apiKey.id)
+      .single();
+
     const response = await fetch(webhookUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        // Include API key ID for WordPress to verify
+        "X-SEO-Max-Key-ID": apiKey.id,
       },
       body: JSON.stringify({
         improvement_id: improvementId,
@@ -88,9 +110,16 @@ export async function applyImprovementToWordPress(
       }),
     });
 
+    // #region agent log
+    debugLog({location:'apply-improvements.ts:applyImprovementToWordPress',message:'WordPress response received',data:{status:response.status,ok:response.ok},hypothesisId:'C'});
+    // #endregion
+
     if (!response.ok) {
       const errorText = await response.text().catch(() => "Unknown error");
       console.error("WordPress apply failed:", response.status, errorText);
+      // #region agent log
+      debugLog({location:'apply-improvements.ts:applyImprovementToWordPress',message:'WordPress apply failed',data:{status:response.status,errorText:errorText.substring(0,200)},hypothesisId:'C'});
+      // #endregion
       return {
         success: false,
         error: `WordPress returned ${response.status}: ${errorText.substring(0, 100)}`,

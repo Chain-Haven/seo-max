@@ -6,6 +6,12 @@ import { revalidatePath } from "next/cache";
 import { crawlSite, quickHealthCheck, type CrawlResult, type CrawlSummary } from "@/lib/seo/site-crawler";
 import { generateImprovementsFromCrawl } from "@/lib/actions/crawl-to-improvements";
 
+// #region agent log helper
+function debugLog(data: Record<string, unknown>) {
+  console.log("[DEBUG]", JSON.stringify({ ...data, timestamp: Date.now() }));
+}
+// #endregion
+
 // Start a new site crawl
 export async function startSiteCrawl(
   storeId: string,
@@ -40,8 +46,11 @@ export async function startSiteCrawl(
     crawlSite(siteUrl, {
       maxPages,
       onPageCrawled: async (result) => {
+        // #region agent log
+        debugLog({location:'site-crawler.ts:onPageCrawled',message:'Saving crawled page',data:{url:result.url,hasOpenGraph:!!result.openGraph,hasSchema:!!result.schema},hypothesisId:'D'});
+        // #endregion
         // Save each page result
-        await serviceClient.from("crawled_pages").insert({
+        const { error: insertError } = await serviceClient.from("crawled_pages").insert({
           crawl_id: crawl.id,
           store_id: storeId,
           url: result.url,
@@ -75,7 +84,11 @@ export async function startSiteCrawl(
           has_author_info: result.hasAuthorInfo,
           has_date_published: result.hasDatePublished,
         });
-        
+        // #region agent log
+        if (insertError) {
+          debugLog({location:'site-crawler.ts:onPageCrawled',message:'ERROR inserting crawled page',data:{error:insertError.message,code:insertError.code},hypothesisId:'D'});
+        }
+        // #endregion
       },
     }).then(async ({ summary }) => {
       // Update crawl as completed with final page count

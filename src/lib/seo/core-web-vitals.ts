@@ -20,16 +20,26 @@ export async function getCoreWebVitals(
   url: string,
   apiKey?: string
 ): Promise<CoreWebVitals | null> {
+  // #region agent log
+  console.log("[DEBUG] getCoreWebVitals called", { url, hasApiKey: !!apiKey });
+  // #endregion
   if (!apiKey) {
     // Return null if no API key - feature will be skipped
+    // #region agent log
+    console.log("[DEBUG] No PageSpeed API key - skipping Core Web Vitals");
+    // #endregion
     return null;
   }
 
   try {
-    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO`;
+    // FIX: PageSpeed API uses query parameter 'key', not x-api-key header
+    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${encodeURIComponent(apiKey)}&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO`;
+    
+    // #region agent log
+    console.log("[DEBUG] Calling PageSpeed API for", url);
+    // #endregion
     
     const response = await fetch(apiUrl, {
-      headers: apiKey ? { "x-api-key": apiKey } : {},
       signal: AbortSignal.timeout(30000),
     });
 
