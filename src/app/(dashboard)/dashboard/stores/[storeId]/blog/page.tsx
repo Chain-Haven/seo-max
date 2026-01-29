@@ -5,10 +5,11 @@ import { getStore } from "@/lib/actions/stores";
 import { getContentCalendar } from "@/lib/actions/blog";
 import { BlogPostSEOTable } from "@/components/seo/blog-post-seo-table";
 import { ContentCalendar } from "@/components/blog/content-calendar";
+import { ProductBlogGenerator } from "@/components/blog/product-blog-generator";
 import { SEOStats } from "@/components/seo/seo-stats";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, RefreshCw, Sparkles, Calendar, List } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Sparkles, Calendar, List, Package } from "lucide-react";
 import Link from "next/link";
 
 interface Props {
@@ -96,8 +97,12 @@ export default async function BlogSEOPage({ params }: Props) {
         ]}
       />
 
-      <Tabs defaultValue="calendar">
+      <Tabs defaultValue="products">
         <TabsList>
+          <TabsTrigger value="products">
+            <Package className="mr-2 h-4 w-4" />
+            Generate from Products
+          </TabsTrigger>
           <TabsTrigger value="calendar">
             <Calendar className="mr-2 h-4 w-4" />
             Content Calendar
@@ -107,6 +112,13 @@ export default async function BlogSEOPage({ params }: Props) {
             All Posts
           </TabsTrigger>
         </TabsList>
+        <TabsContent value="products" className="mt-4">
+          <ProductBlogGenerator 
+            storeId={storeId} 
+            storeName={store.name}
+            isWooCommerce={store.platform === "woocommerce"}
+          />
+        </TabsContent>
         <TabsContent value="calendar" className="mt-4">
           {calendar && <ContentCalendar calendar={calendar} />}
         </TabsContent>
