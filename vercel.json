@@ -7,6 +7,14 @@
     {
       "path": "/api/cron/email-digest",
       "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/cron/site-scan",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/autonomous-dev",
+      "schedule": "0 2 * * 0"
     }
   ]
 }

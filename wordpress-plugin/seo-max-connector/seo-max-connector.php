@@ -200,6 +200,49 @@ final class SEO_Max_Connector {
             'callback' => array($this, 'get_status'),
             'permission_callback' => '__return_true',
         ));
+        
+        // Endpoint for applying SEO improvements from the platform
+        register_rest_route('seo-max/v1', '/apply-improvement', array(
+            'methods' => 'POST',
+            'callback' => array($this, 'handle_apply_improvement'),
+            'permission_callback' => '__return_true', // Open endpoint - uses internal verification
+        ));
+    }
+    
+    /**
+     * Handle apply improvement request from SEO Max platform
+     */
+    public function handle_apply_improvement($request) {
+        $body = $request->get_json_params();
+        
+        if (empty($body)) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'error' => 'Invalid request body',
+            ), 400);
+        }
+        
+        // Extract the action and data
+        $action = isset($body['action']) ? $body['action'] : 'generic_improvement';
+        $data = array_merge($body, array('action' => $action));
+        
+        // Use the webhook handler to process the improvement
+        if (!$this->webhook_handler) {
+            return new WP_REST_Response(array(
+                'success' => false,
+                'error' => 'Plugin not fully initialized',
+            ), 500);
+        }
+        
+        // Manually call handle_webhook with constructed request
+        $fake_request = new WP_REST_Request('POST');
+        $fake_request->set_body(json_encode(array('action' => $action, 'data' => $data)));
+        $fake_request->set_header('Content-Type', 'application/json');
+        
+        // Process directly through webhook handler
+        $result = $this->webhook_handler->handle_webhook($fake_request);
+        
+        return $result;
     }
     
     /**

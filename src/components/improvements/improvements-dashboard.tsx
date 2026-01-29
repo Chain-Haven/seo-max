@@ -16,12 +16,13 @@ import {
   Image,
   MessageSquare,
   Sparkles,
-  Zap,
+  FileSearch,
 } from "lucide-react";
 import { ContentFreshnessTab } from "./content-freshness-tab";
 import { ThinContentTab } from "./thin-content-tab";
 import { ImageOptimizationTab } from "./image-optimization-tab";
 import { FAQGenerationTab } from "./faq-generation-tab";
+import { AuditFindingsTab } from "./audit-findings-tab";
 
 interface ImprovementsDashboardProps {
   storeId: string;
@@ -32,9 +33,15 @@ export function ImprovementsDashboard({
   storeId,
   storeUrl,
 }: ImprovementsDashboardProps) {
-  const [activeTab, setActiveTab] = useState("freshness");
+  const [activeTab, setActiveTab] = useState("audit");
 
   const tabs = [
+    {
+      id: "audit",
+      label: "Audit Findings",
+      icon: FileSearch,
+      description: "Issues from site audit and AI scan",
+    },
     {
       id: "freshness",
       label: "Content Freshness",
@@ -64,7 +71,7 @@ export function ImprovementsDashboard({
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         {tabs.map((tab) => (
           <Card
             key={tab.id}
@@ -108,7 +115,11 @@ export function ImprovementsDashboard({
 
       {/* Tab Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="audit" className="gap-2">
+            <FileSearch className="h-4 w-4" />
+            <span className="hidden sm:inline">Audit</span>
+          </TabsTrigger>
           <TabsTrigger value="freshness" className="gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Freshness</span>
@@ -126,6 +137,10 @@ export function ImprovementsDashboard({
             <span className="hidden sm:inline">FAQs</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="audit" className="mt-6">
+          <AuditFindingsTab storeId={storeId} />
+        </TabsContent>
 
         <TabsContent value="freshness" className="mt-6">
           <ContentFreshnessTab storeId={storeId} />

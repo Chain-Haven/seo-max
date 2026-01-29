@@ -11,13 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Download,
-  Settings,
   User,
   Key,
   Globe,
   FileCode,
   CheckCircle,
+  MessageSquarePlus,
+  Bot,
 } from "lucide-react";
+import { FeedbackForm } from "@/components/feedback/feedback-form";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -50,6 +52,7 @@ export default async function SettingsPage() {
           <TabsTrigger value="plugin">WordPress Plugin</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
+          <TabsTrigger value="feedback">Feedback</TabsTrigger>
         </TabsList>
 
         <TabsContent value="plugin" className="space-y-4">
@@ -276,6 +279,77 @@ export default async function SettingsPage() {
               <code className="block mt-2 p-2 bg-muted rounded text-sm">
                 https://your-site.com/wp-json/seo-max/v1/webhook
               </code>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="feedback" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquarePlus className="h-5 w-5" />
+                Send Feedback
+              </CardTitle>
+              <CardDescription>
+                Help us improve SEO Max by sharing your feedback, bug reports, or feature requests.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <div className="flex items-start gap-3">
+                  <Bot className="h-8 w-8 text-primary mt-1" />
+                  <div>
+                    <h4 className="font-medium">AI-Powered Improvements</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Your feedback is reviewed by our autonomous development AI, which can
+                      automatically implement improvements and deploy them to the platform.
+                      This means your suggestions can be turned into reality faster than ever.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <FeedbackForm />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>How Feedback Works</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  1
+                </div>
+                <div>
+                  <p className="font-medium">Submit Feedback</p>
+                  <p className="text-muted-foreground">
+                    Use the form above to report bugs, request features, or suggest improvements.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  2
+                </div>
+                <div>
+                  <p className="font-medium">AI Review</p>
+                  <p className="text-muted-foreground">
+                    Our Claude Opus AI agent analyzes your feedback and identifies actionable improvements.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium">Automatic Implementation</p>
+                  <p className="text-muted-foreground">
+                    The AI writes and tests code changes, then deploys them to production automatically.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

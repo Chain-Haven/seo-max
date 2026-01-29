@@ -126,11 +126,11 @@ export default function NewStorePage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <ol className="list-decimal list-inside space-y-3 text-sm">
-              <li>Download the SEO Max plugin from the settings page</li>
+              <li>Download the SEO Max Connector plugin from the settings page</li>
               <li>Install and activate the plugin on your WordPress site</li>
               <li>Go to SEO Max settings in your WordPress admin</li>
               <li>Paste the API key above and click Connect</li>
-              <li>Your store will sync automatically</li>
+              <li>Your store will sync and an initial site scan will run automatically (audit + AI improvements)</li>
             </ol>
             <div className="flex gap-2 pt-4">
               <Link href="/dashboard/stores">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { validateApiKey, getApiKeyFromRequest } from "@/lib/api/auth";
+import { triggerInitialCrawl } from "@/lib/actions/site-crawler";
 
 function getSupabaseClient(): SupabaseClient {
   return createClient(
@@ -69,6 +70,11 @@ export async function POST(request: Request) {
     if (updateError) {
       console.error("Failed to update store:", updateError);
     }
+
+    // Trigger initial site scan in background (crawl + AI improvements)
+    triggerInitialCrawl(validation.storeId!).catch((err) =>
+      console.error("Initial crawl after connect:", err)
+    );
 
     return NextResponse.json({
       success: true,

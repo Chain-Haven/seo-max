@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import { validateApiKey, getApiKeyFromRequest } from "@/lib/api/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,26 +8,20 @@ export async function GET(
 ) {
   try {
     const { storeId } = await params;
-    const apiKey = request.headers.get("x-api-key");
+    const apiKey = getApiKeyFromRequest(request);
 
     if (!apiKey) {
       return NextResponse.json({ error: "API key required" }, { status: 401 });
     }
 
-    // Verify API key
-    const supabase = await createClient();
-    const { data: key } = await supabase
-      .from("api_keys")
-      .select("*")
-      .eq("store_id", storeId)
-      .eq("key_hash", apiKey)
-      .single();
-
-    if (!key) {
+    const validation = await validateApiKey(apiKey);
+    if (!validation.valid || validation.storeId !== storeId) {
       return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
     }
 
-    // Get pending improvements
+    const supabase = await createServiceClient();
+
+    // Get pending improvements (plugin calls with API key; no user session)
     const { data: improvements, error } = await supabase
       .from("seo_improvements")
       .select("*")

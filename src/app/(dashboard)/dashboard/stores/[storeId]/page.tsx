@@ -36,6 +36,7 @@ import {
   MapPin,
   Layers,
   Code,
+  Bot,
 } from "lucide-react";
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
@@ -202,6 +203,26 @@ export default async function StoreDetailPage({ params }: Props) {
           </Card>
         </Link>
       </div>
+
+      {/* Robo Jacob - AI SEO Advisor */}
+      <Link href={`/dashboard/stores/${storeId}/robo-jacob`}>
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer border-2 border-dashed border-primary/40 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                <Bot className="h-6 w-6 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-base">Robo Jacob</p>
+                <p className="text-sm text-muted-foreground">
+                  Your AI SEO advisor. Ask about your site data, audit results, or what to fix next.
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 ml-auto" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* Additional Tools - Row 1 */}
       <div className="grid gap-4 md:grid-cols-6">

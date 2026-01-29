@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { crawlSite, quickHealthCheck, type CrawlResult, type CrawlSummary } from "@/lib/seo/site-crawler";
+import { generateImprovementsFromCrawl } from "@/lib/actions/crawl-to-improvements";
 
 // Start a new site crawl
 export async function startSiteCrawl(
@@ -61,24 +62,22 @@ export async function startSiteCrawl(
           issues: result.issues,
         });
         
-        // Update crawl progress
-        await serviceClient
-          .from("site_crawls")
-          .update({ pages_crawled: result.statusCode ? 1 : 0 })
-          .eq("id", crawl.id);
       },
     }).then(async ({ summary }) => {
-      // Update crawl as completed
+      // Update crawl as completed with final page count
       await serviceClient
         .from("site_crawls")
         .update({
           status: "completed",
           completed_at: new Date().toISOString(),
           summary,
+          pages_crawled: summary.totalPages,
         })
         .eq("id", crawl.id);
-      
+      // Generate AI-backed SEO improvements from crawl data
+      await generateImprovementsFromCrawl(storeId, crawl.id);
       revalidatePath(`/dashboard/stores/${storeId}/audit`);
+      revalidatePath(`/dashboard/stores/${storeId}/improvements`);
     }).catch(async (error) => {
       console.error("Crawl error:", error);
       await serviceClient
@@ -363,5 +362,95 @@ export async function getPagesWithIssue(
   } catch (error) {
     console.error("Get pages with issue error:", error);
     return { data: null, error: "Failed to get pages" };
+  }
+}
+
+/**
+ * Start an initial site crawl without user auth (e.g. after plugin connect).
+ * Runs in background; when crawl completes, AI improvements are generated automatically.
+ */
+export async function triggerInitialCrawl(storeId: string): Promise<{ ok: boolean; error?: string }> {
+  const serviceClient = await createServiceClient();
+  try {
+    const { data: store, error: storeError } = await serviceClient
+      .from("stores")
+      .select("id, url")
+      .eq("id", storeId)
+      .single();
+
+    if (storeError || !store?.url) {
+      return { ok: false, error: "Store not found or missing URL" };
+    }
+
+    const siteUrl = store.url.startsWith("http") ? store.url : `https://${store.url}`;
+    const maxPages = 50;
+
+    const { data: crawl, error: crawlError } = await serviceClient
+      .from("site_crawls")
+      .insert({
+        store_id: storeId,
+        status: "running",
+        pages_total: maxPages,
+        started_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (crawlError || !crawl) {
+      return { ok: false, error: crawlError?.message ?? "Failed to create crawl" };
+    }
+
+    crawlSite(siteUrl, {
+      maxPages,
+      onPageCrawled: async (result) => {
+        await serviceClient.from("crawled_pages").insert({
+          crawl_id: crawl.id,
+          store_id: storeId,
+          url: result.url,
+          status_code: result.statusCode,
+          title: result.title,
+          meta_description: result.metaDescription,
+          h1_tags: result.h1Tags,
+          h2_tags: result.h2Tags,
+          word_count: result.wordCount,
+          internal_links: result.internalLinks,
+          external_links: result.externalLinks,
+          images_total: result.imagesTotal,
+          images_missing_alt: result.imagesMissingAlt,
+          canonical_url: result.canonicalUrl,
+          has_robots_noindex: result.hasRobotsNoindex,
+          has_robots_nofollow: result.hasRobotsNofollow,
+          load_time_ms: result.loadTimeMs,
+          issues: result.issues,
+        });
+      },
+    })
+      .then(async ({ summary }) => {
+        await serviceClient
+          .from("site_crawls")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            summary,
+            pages_crawled: summary.totalPages,
+          })
+          .eq("id", crawl.id);
+        await generateImprovementsFromCrawl(storeId, crawl.id);
+      })
+      .catch(async (err) => {
+        console.error("Initial crawl error:", err);
+        await serviceClient
+          .from("site_crawls")
+          .update({
+            status: "failed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", crawl.id);
+      });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("triggerInitialCrawl error:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Unknown error" };
   }
 }
