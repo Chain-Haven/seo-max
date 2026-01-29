@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
 export async function createClient() {
@@ -28,20 +29,13 @@ export async function createClient() {
   );
 }
 
+// Service client bypasses RLS - use for admin operations
+// Uses createClient directly instead of createServerClient to avoid cookie/session interference
 export async function createServiceClient() {
-  // Service client doesn't need cookies - it uses service role key to bypass RLS
-  return createServerClient(
+  return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
-      cookies: {
-        getAll() {
-          return [];
-        },
-        setAll() {
-          // No-op for service client
-        },
-      },
       auth: {
         autoRefreshToken: false,
         persistSession: false,
