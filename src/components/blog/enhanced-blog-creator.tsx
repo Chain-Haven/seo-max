@@ -51,6 +51,7 @@ import {
   X,
   Rocket,
   CheckCircle2,
+  Crown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { saveBlogPost, publishToWordPress } from "@/lib/actions/blog";
@@ -66,6 +67,7 @@ import {
   improveArticle,
 } from "@/lib/actions/enhanced-blog";
 import { autoImproveToTargetScore } from "@/lib/actions/auto-improve-blog";
+import { ultraOptimizeBlog } from "@/lib/actions/ultra-blog-optimizer";
 import type { SerpAnalysis, ContentAnalysis } from "@/lib/ai/competitor-analysis";
 import type { ContentScore } from "@/lib/ai/content-scoring";
 import type { TemplateInfo, ArticleTemplate } from "@/lib/ai/content-templates";
@@ -127,6 +129,11 @@ export function EnhancedBlogCreator({
   const [autoImproveIteration, setAutoImproveIteration] = useState(0);
   const [autoImproveCurrentScore, setAutoImproveCurrentScore] = useState(0);
   const [autoImproveMessage, setAutoImproveMessage] = useState("");
+
+  // Ultra Optimize to 95+ state
+  const [isUltraOptimizing, setIsUltraOptimizing] = useState(false);
+  const [ultraOptimizeMessage, setUltraOptimizeMessage] = useState("");
+  const [generatedFeatures, setGeneratedFeatures] = useState<string[]>([]);
 
   // Load templates on mount
   useEffect(() => {
@@ -393,6 +400,137 @@ export function EnhancedBlogCreator({
     } finally {
       setIsAutoImproving(false);
       setAutoImproveMessage("");
+    }
+  };
+
+  // Ultra Optimize to 95+ SEO score with all features
+  const handleUltraOptimize = async () => {
+    if (!content || !keyword) {
+      toast.error("Content and keyword are required");
+      return;
+    }
+
+    setIsUltraOptimizing(true);
+    setIsAutoImproving(true);
+    setAutoImproveProgress(0);
+    setAutoImproveCurrentScore(contentScore?.overall || 0);
+    setUltraOptimizeMessage("Starting ultra optimization...");
+    setGeneratedFeatures([]);
+
+    const phases = [
+      { progress: 10, message: "Optimizing title & meta..." },
+      { progress: 20, message: "Expanding content..." },
+      { progress: 30, message: "Optimizing keywords..." },
+      { progress: 40, message: "Improving structure..." },
+      { progress: 50, message: "Generating FAQ section..." },
+      { progress: 60, message: "Adding key takeaways..." },
+      { progress: 70, message: "Generating statistics..." },
+      { progress: 80, message: "Creating images..." },
+      { progress: 90, message: "Adding author & CTA..." },
+      { progress: 95, message: "Final polish..." },
+    ];
+
+    // Simulate progress updates
+    let phaseIndex = 0;
+    const progressInterval = setInterval(() => {
+      if (phaseIndex < phases.length) {
+        setAutoImproveProgress(phases[phaseIndex].progress);
+        setUltraOptimizeMessage(phases[phaseIndex].message);
+        phaseIndex++;
+      }
+    }, 3000);
+
+    try {
+      const result = await ultraOptimizeBlog(
+        content,
+        title,
+        metaTitle,
+        metaDescription,
+        [keyword],
+        {
+          targetScore: 95,
+          generateImages: true,
+          storeName: storeName,
+        }
+      );
+
+      clearInterval(progressInterval);
+
+      if (result.success) {
+        // Update all content
+        setContent(result.content);
+        setTitle(result.title);
+        setMetaTitle(result.metaTitle);
+        setMetaDescription(result.metaDescription);
+        
+        // Update images
+        if (result.images.length > 0) {
+          setGeneratedImages(result.images);
+        }
+        
+        // Update score
+        setContentScore({
+          overall: result.finalScore.overall,
+          grade: result.finalScore.grade,
+          breakdown: result.finalScore.breakdown,
+          suggestions: result.finalScore.prioritizedRecommendations,
+        });
+
+        // Track generated features
+        const features = [];
+        if (result.generatedFeatures.faqSection) features.push("FAQ Section");
+        if (result.generatedFeatures.keyTakeaways) features.push("Key Takeaways");
+        if (result.generatedFeatures.proTips) features.push("Pro Tips");
+        if (result.generatedFeatures.statistics) features.push("Statistics");
+        if (result.generatedFeatures.comparisonTable) features.push("Comparison Table");
+        if (result.generatedFeatures.authorBio) features.push("Author Bio");
+        if (result.generatedFeatures.callToAction) features.push("Call-to-Action");
+        if (result.images.length > 0) features.push(`${result.images.length} Images`);
+        
+        setGeneratedFeatures(features);
+
+        toast.success(`Ultra optimized to ${result.finalScore.overall}! 🏆`, {
+          description: `${result.improvements.length} improvements in ${result.iterations} phases.`,
+        });
+
+        if (features.length > 0) {
+          toast.info("Generated features", {
+            description: features.join(", "),
+          });
+        }
+      } else {
+        toast.error("Ultra optimization incomplete", {
+          description: `Achieved ${result.finalScore.overall}/95. ${result.error || "Some features may not have been generated."}`,
+        });
+        
+        // Still update with improved content
+        setContent(result.content);
+        setTitle(result.title);
+        setMetaTitle(result.metaTitle);
+        setMetaDescription(result.metaDescription);
+        
+        if (result.images.length > 0) {
+          setGeneratedImages(result.images);
+        }
+        
+        setContentScore({
+          overall: result.finalScore.overall,
+          grade: result.finalScore.grade,
+          breakdown: result.finalScore.breakdown,
+          suggestions: result.finalScore.prioritizedRecommendations,
+        });
+      }
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error("Ultra optimize error:", error);
+      toast.error("Ultra optimization failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+      });
+    } finally {
+      setIsUltraOptimizing(false);
+      setIsAutoImproving(false);
+      setUltraOptimizeMessage("");
+      setAutoImproveProgress(100);
     }
   };
 
@@ -946,41 +1084,77 @@ export function EnhancedBlogCreator({
                     </div>
                   )}
 
-                  {/* Auto-Improve to 90+ */}
-                  {contentScore.overall < 90 && (
-                    <div className="pt-2 border-t">
+                  {/* Auto-Improve Buttons */}
+                  {contentScore.overall < 95 && (
+                    <div className="pt-2 border-t space-y-2">
+                      {contentScore.overall < 90 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full"
+                          onClick={handleAutoImproveTo90}
+                          disabled={isLoading || isAutoImproving || isUltraOptimizing}
+                        >
+                          {isAutoImproving && !isUltraOptimizing ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {autoImproveMessage}
+                            </>
+                          ) : (
+                            <>
+                              <Rocket className="mr-2 h-4 w-4" />
+                              Auto-Improve to 90+
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      
                       <Button
                         size="sm"
-                        className="w-full bg-gradient-to-r from-primary to-purple-600 hover:from-primary/90 hover:to-purple-600/90"
-                        onClick={handleAutoImproveTo90}
-                        disabled={isLoading || isAutoImproving}
+                        className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-500/90 hover:to-orange-600/90 text-white"
+                        onClick={handleUltraOptimize}
+                        disabled={isLoading || isAutoImproving || isUltraOptimizing}
                       >
-                        {isAutoImproving ? (
+                        {isUltraOptimizing ? (
                           <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            {autoImproveMessage}
+                            {ultraOptimizeMessage}
                           </>
                         ) : (
                           <>
-                            <Rocket className="mr-2 h-4 w-4" />
-                            Auto-Improve to 90+
+                            <Crown className="mr-2 h-4 w-4" />
+                            Ultra Optimize to 95+
                           </>
                         )}
                       </Button>
-                      {isAutoImproving && (
+                      
+                      {(isAutoImproving || isUltraOptimizing) && (
                         <div className="mt-2">
                           <Progress value={autoImproveProgress} className="h-1" />
                           <p className="text-xs text-muted-foreground mt-1 text-center">
-                            Iteration {autoImproveIteration} • Score: {Math.round(autoImproveCurrentScore)}
+                            {isUltraOptimizing ? "Generating features..." : `Iteration ${autoImproveIteration}`} • Score: {Math.round(autoImproveCurrentScore)}
                           </p>
                         </div>
                       )}
+                      
+                      <p className="text-xs text-muted-foreground text-center">
+                        Ultra adds FAQ, images, stats, author bio & more
+                      </p>
                     </div>
                   )}
 
-                  {contentScore.overall >= 90 && (
+                  {contentScore.overall >= 95 && (
                     <div className="pt-2 border-t">
-                      <div className="flex items-center gap-2 text-green-600 justify-center p-2 bg-green-500/10 rounded-lg">
+                      <div className="flex items-center gap-2 text-amber-600 justify-center p-2 bg-amber-500/10 rounded-lg">
+                        <Crown className="h-4 w-4" />
+                        <span className="text-sm font-medium">Ultra Optimized! 🏆</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {contentScore.overall >= 90 && contentScore.overall < 95 && (
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center gap-2 text-green-600 justify-center p-2 bg-green-500/10 rounded-lg mb-2">
                         <CheckCircle2 className="h-4 w-4" />
                         <span className="text-sm font-medium">SEO Optimized!</span>
                       </div>
