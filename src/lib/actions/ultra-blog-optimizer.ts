@@ -124,9 +124,34 @@ export async function ultraOptimizeBlog(
     storeName?: string;
   } = {}
 ): Promise<UltraOptimizeResult> {
+  console.log("[UltraOptimize] Starting with:", { 
+    contentLength: content?.length, 
+    title, 
+    keywords,
+    hasOpenAI: !!process.env.OPENAI_API_KEY,
+    hasAnthropic: !!process.env.ANTHROPIC_API_KEY,
+  });
+
+  // Validate inputs
+  if (!content || content.trim().length === 0) {
+    console.error("[UltraOptimize] No content provided");
+    throw new Error("Content is required for optimization");
+  }
+  
+  if (!keywords || keywords.length === 0 || !keywords[0]) {
+    console.error("[UltraOptimize] No keywords provided");
+    throw new Error("At least one keyword is required for optimization");
+  }
+
   const targetScore = options.targetScore || TARGET_SCORE;
   const generateImages = options.generateImages !== false;
   const primaryKeyword = keywords[0] || "";
+  
+  // Check for API keys
+  if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    console.error("[UltraOptimize] No AI API keys configured");
+    throw new Error("No AI provider configured. Please add OPENAI_API_KEY or ANTHROPIC_API_KEY to environment variables.");
+  }
   
   const ai = getAIProvider();
   const improvements: string[] = [];
@@ -148,7 +173,7 @@ export async function ultraOptimizeBlog(
   };
 
   let iteration = 0;
-  let currentScore: BlogSEOScore;
+  let currentScore: BlogSEOScore | undefined;
 
   try {
     // Initial score
@@ -447,13 +472,37 @@ export async function ultraOptimizeBlog(
     };
   } catch (error) {
     console.error("[UltraOptimize] Error:", error);
+    
+    // Calculate a score if we don't have one yet
+    const fallbackScore: BlogSEOScore = currentScore || {
+      overall: 0,
+      keyword: 0,
+      readability: 0,
+      structure: 0,
+      eeat: 0,
+      technical: 0,
+      breakdown: {
+        titleOptimization: { score: 0, issues: ["Error during optimization"] },
+        metaDescription: { score: 0, issues: [] },
+        contentLength: { score: 0, issues: [] },
+        keywordUsage: { score: 0, issues: [] },
+        headingStructure: { score: 0, issues: [] },
+        readability: { score: 0, issues: [] },
+        internalLinks: { score: 0, issues: [] },
+        images: { score: 0, issues: [] },
+        eeatSignals: { score: 0, issues: [] },
+      },
+      grade: "F",
+      prioritizedRecommendations: [],
+    };
+    
     return {
       success: false,
       content: state.content,
       title: state.title,
       metaTitle: state.metaTitle,
       metaDescription: state.metaDescription,
-      finalScore: currentScore!,
+      finalScore: fallbackScore,
       iterations: iteration,
       generatedFeatures: {},
       images: state.images,

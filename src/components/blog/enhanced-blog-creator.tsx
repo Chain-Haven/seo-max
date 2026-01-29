@@ -513,6 +513,13 @@ export function EnhancedBlogCreator({
     }, 3000);
 
     try {
+      console.log("[UltraOptimize Client] Starting with:", {
+        contentLength: content?.length,
+        title,
+        keyword,
+        storeName,
+      });
+
       const result = await ultraOptimizeBlog(
         content,
         title,
@@ -527,6 +534,14 @@ export function EnhancedBlogCreator({
       );
 
       clearInterval(progressInterval);
+      
+      console.log("[UltraOptimize Client] Result received:", {
+        success: result.success,
+        contentLength: result.content?.length,
+        error: result.error,
+        improvements: result.improvements?.length,
+        finalScore: result.finalScore?.overall,
+      });
 
       if (result.success) {
         // Update all content
@@ -571,38 +586,71 @@ export function EnhancedBlogCreator({
           });
         }
       } else {
-        toast.error("Ultra optimization incomplete", {
-          description: `Achieved ${result.finalScore.overall}/95. ${result.error || "Some features may not have been generated."}`,
+        // Not fully successful but may have partial results
+        console.log("[UltraOptimize Client] Partial result:", {
+          error: result.error,
+          hasContent: !!result.content,
+          contentChanged: result.content !== content,
+          finalScore: result.finalScore?.overall,
         });
         
-        // Still update with improved content
-        setContent(result.content);
-        setTitle(result.title);
-        setMetaTitle(result.metaTitle);
-        setMetaDescription(result.metaDescription);
+        // Show warning with score achieved
+        const scoreText = result.finalScore?.overall 
+          ? `Achieved ${result.finalScore.overall}/95.` 
+          : "Could not calculate score.";
         
-        if (result.images.length > 0) {
+        toast.warning("Ultra optimization incomplete", {
+          description: `${scoreText} ${result.error || "Some features may not have been generated."}`,
+          duration: 8000,
+        });
+        
+        // Still update with any improved content if we have it
+        if (result.content && result.content !== content) {
+          setContent(result.content);
+          console.log("[UltraOptimize Client] Content updated despite partial success");
+        }
+        if (result.title && result.title !== title) {
+          setTitle(result.title);
+        }
+        if (result.metaTitle && result.metaTitle !== metaTitle) {
+          setMetaTitle(result.metaTitle);
+        }
+        if (result.metaDescription && result.metaDescription !== metaDescription) {
+          setMetaDescription(result.metaDescription);
+        }
+        
+        if (result.images && result.images.length > 0) {
           setGeneratedImages(result.images);
         }
         
-        setContentScore({
-          overall: result.finalScore.overall,
-          grade: result.finalScore.grade,
-          breakdown: convertScoreBreakdown(result.finalScore.breakdown),
-          suggestions: result.finalScore.prioritizedRecommendations,
-        });
+        // Update score if we have one
+        if (result.finalScore?.overall) {
+          setContentScore({
+            overall: result.finalScore.overall,
+            grade: result.finalScore.grade,
+            breakdown: convertScoreBreakdown(result.finalScore.breakdown),
+            suggestions: result.finalScore.prioritizedRecommendations || [],
+          });
+        }
       }
     } catch (error) {
       clearInterval(progressInterval);
-      console.error("Ultra optimize error:", error);
+      console.error("[UltraOptimize Client] Error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error("Ultra optimization failed", {
-        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        description: errorMessage,
+        duration: 10000, // Show for 10 seconds so user can read it
       });
+      
+      // Also show in an alert for visibility
+      setUltraOptimizeMessage(`Error: ${errorMessage}`);
     } finally {
       setIsUltraOptimizing(false);
       setIsAutoImproving(false);
-      setUltraOptimizeMessage("");
-      setAutoImproveProgress(100);
+      setTimeout(() => {
+        setUltraOptimizeMessage("");
+        setAutoImproveProgress(100);
+      }, 3000); // Keep error message visible for 3 seconds
     }
   };
 
