@@ -1,5 +1,45 @@
 import * as cheerio from "cheerio";
 
+export interface ImageDetails {
+  url: string;
+  alt: string | null;
+  width: number | null;
+  height: number | null;
+  sizeBytes: number | null;
+  format: string | null;
+  hasLazyLoading: boolean;
+}
+
+export interface ExternalLink {
+  url: string;
+  anchorText: string;
+  isNofollow: boolean;
+  isSponsored: boolean;
+  isUgc: boolean;
+}
+
+export interface InternalLink {
+  url: string;
+  anchorText: string;
+}
+
+export interface OpenGraphData {
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImage: string | null;
+  ogType: string | null;
+  ogUrl: string | null;
+}
+
+export interface SchemaData {
+  types: string[];
+  hasProduct: boolean;
+  hasFAQ: boolean;
+  hasArticle: boolean;
+  hasLocalBusiness: boolean;
+  hasOrganization: boolean;
+}
+
 export interface CrawlResult {
   url: string;
   statusCode: number;
@@ -10,13 +50,28 @@ export interface CrawlResult {
   wordCount: number;
   internalLinks: number;
   externalLinks: number;
+  internalLinkUrls: InternalLink[];
+  externalLinkUrls: ExternalLink[];
   imagesTotal: number;
   imagesMissingAlt: number;
+  imageDetails: ImageDetails[];
   canonicalUrl: string | null;
   hasRobotsNoindex: boolean;
   hasRobotsNofollow: boolean;
   loadTimeMs: number;
   issues: CrawlIssue[];
+  // New fields
+  urlSlug: string;
+  urlDepth: number;
+  isHttps: boolean;
+  hasMobileViewport: boolean;
+  openGraph: OpenGraphData;
+  schema: SchemaData;
+  hreflangTags: Array<{ lang: string; url: string }>;
+  lastModified: string | null;
+  contentHash: string; // For duplicate detection
+  hasAuthorInfo: boolean;
+  hasDatePublished: boolean;
 }
 
 export interface CrawlIssue {
@@ -152,6 +207,7 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
     
     html = await response.text();
   } catch (error) {
+    const urlObj = new URL(url);
     return {
       url,
       statusCode: 0,
@@ -162,8 +218,11 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
       wordCount: 0,
       internalLinks: 0,
       externalLinks: 0,
+      internalLinkUrls: [],
+      externalLinkUrls: [],
       imagesTotal: 0,
       imagesMissingAlt: 0,
+      imageDetails: [],
       canonicalUrl: null,
       hasRobotsNoindex: false,
       hasRobotsNofollow: false,
@@ -174,11 +233,60 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
         message: "Failed to fetch page",
         details: error instanceof Error ? error.message : "Unknown error",
       }],
+      urlSlug: urlObj.pathname,
+      urlDepth: urlObj.pathname.split("/").filter(Boolean).length,
+      isHttps: urlObj.protocol === "https:",
+      hasMobileViewport: false,
+      openGraph: {
+        ogTitle: null,
+        ogDescription: null,
+        ogImage: null,
+        ogType: null,
+        ogUrl: null,
+      },
+      schema: {
+        types: [],
+        hasProduct: false,
+        hasFAQ: false,
+        hasArticle: false,
+        hasLocalBusiness: false,
+        hasOrganization: false,
+      },
+      hreflangTags: [],
+      lastModified: null,
+      contentHash: "",
+      hasAuthorInfo: false,
+      hasDatePublished: false,
     };
   }
   
   const loadTimeMs = Date.now() - startTime;
   const $ = cheerio.load(html);
+  
+  // URL analysis
+  const urlObj = new URL(url);
+  const urlSlug = urlObj.pathname.split("/").filter(Boolean).join("/") || "/";
+  const urlDepth = urlObj.pathname.split("/").filter(Boolean).length;
+  const isHttps = urlObj.protocol === "https:";
+  
+  if (!isHttps) {
+    issues.push({
+      type: "not_https",
+      severity: "critical",
+      message: "Page not served over HTTPS",
+    });
+  }
+  
+  // Mobile viewport check
+  const viewport = $('meta[name="viewport"]').attr("content") || "";
+  const hasMobileViewport = viewport.includes("width") || viewport.includes("device-width");
+  if (!hasMobileViewport) {
+    issues.push({
+      type: "missing_mobile_viewport",
+      severity: "warning",
+      message: "Missing or invalid viewport meta tag",
+    });
+  }
   
   // Title
   const title = $("title").first().text().trim() || null;
@@ -270,9 +378,63 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
     });
   }
   
-  // Links
+  // Open Graph tags
+  const openGraph: OpenGraphData = {
+    ogTitle: $('meta[property="og:title"]').attr("content")?.trim() || null,
+    ogDescription: $('meta[property="og:description"]').attr("content")?.trim() || null,
+    ogImage: $('meta[property="og:image"]').attr("content")?.trim() || null,
+    ogType: $('meta[property="og:type"]').attr("content")?.trim() || null,
+    ogUrl: $('meta[property="og:url"]').attr("content")?.trim() || null,
+  };
+  
+  if (!openGraph.ogTitle && title) {
+    issues.push({
+      type: "missing_og_title",
+      severity: "warning",
+      message: "Missing Open Graph title",
+    });
+  }
+  
+  // Schema markup detection
+  const schemaScripts = $('script[type="application/ld+json"]');
+  const schemaTypes: string[] = [];
+  let hasProduct = false;
+  let hasFAQ = false;
+  let hasArticle = false;
+  let hasLocalBusiness = false;
+  let hasOrganization = false;
+  
+  schemaScripts.each((_, el) => {
+    try {
+      const json = JSON.parse($(el).html() || "{}");
+      if (json["@type"]) {
+        const type = Array.isArray(json["@type"]) ? json["@type"][0] : json["@type"];
+        schemaTypes.push(type);
+        if (type === "Product") hasProduct = true;
+        if (type === "FAQPage" || type === "Question") hasFAQ = true;
+        if (type === "Article" || type === "BlogPosting") hasArticle = true;
+        if (type === "LocalBusiness") hasLocalBusiness = true;
+        if (type === "Organization") hasOrganization = true;
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+  });
+  
+  const schema: SchemaData = {
+    types: schemaTypes,
+    hasProduct,
+    hasFAQ,
+    hasArticle,
+    hasLocalBusiness,
+    hasOrganization,
+  };
+  
+  // Links - collect detailed info
   let internalLinks = 0;
   let externalLinks = 0;
+  const internalLinkUrls: InternalLink[] = [];
+  const externalLinkUrls: ExternalLink[] = [];
   const brokenLinkCandidates: string[] = [];
   
   $("a[href]").each((_, el) => {
@@ -281,12 +443,26 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
       return;
     }
     
+    const anchorText = $(el).text().trim();
+    const rel = $(el).attr("rel")?.toLowerCase() || "";
+    const isNofollow = rel.includes("nofollow");
+    const isSponsored = rel.includes("sponsored");
+    const isUgc = rel.includes("ugc");
+    
     try {
       const linkUrl = new URL(href, url);
       if (linkUrl.hostname === baseDomain || linkUrl.hostname.endsWith(`.${baseDomain}`)) {
         internalLinks++;
+        internalLinkUrls.push({ url: linkUrl.toString(), anchorText });
       } else {
         externalLinks++;
+        externalLinkUrls.push({
+          url: linkUrl.toString(),
+          anchorText,
+          isNofollow,
+          isSponsored,
+          isUgc,
+        });
       }
     } catch {
       brokenLinkCandidates.push(href);
@@ -302,15 +478,75 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
     });
   }
   
-  // Images
+  if (internalLinks === 0) {
+    issues.push({
+      type: "orphan_page",
+      severity: "warning",
+      message: "Orphan page - no internal links found",
+    });
+  }
+  
+  // Images - collect detailed info
   let imagesTotal = 0;
   let imagesMissingAlt = 0;
+  const imageDetails: ImageDetails[] = [];
   
   $("img").each((_, el) => {
     imagesTotal++;
-    const alt = $(el).attr("alt");
+    const src = $(el).attr("src") || $(el).attr("data-src") || "";
+    const alt = $(el).attr("alt") || null;
+    const width = parseInt($(el).attr("width") || "0") || null;
+    const height = parseInt($(el).attr("height") || "0") || null;
+    const loading = $(el).attr("loading")?.toLowerCase() || "";
+    const hasLazyLoading = loading === "lazy" || $(el).attr("data-src") !== undefined;
+    
     if (!alt || alt.trim().length === 0) {
       imagesMissingAlt++;
+    }
+    
+    let imageUrl = src;
+    if (src && !src.startsWith("http")) {
+      try {
+        imageUrl = new URL(src, url).toString();
+      } catch {
+        imageUrl = src;
+      }
+    }
+    
+    // Try to determine format from URL
+    let format: string | null = null;
+    if (imageUrl) {
+      const match = imageUrl.match(/\.(jpg|jpeg|png|gif|webp|avif|svg)(\?|$)/i);
+      if (match) format = match[1].toLowerCase();
+    }
+    
+    imageDetails.push({
+      url: imageUrl,
+      alt,
+      width,
+      height,
+      sizeBytes: null, // Would need HEAD request to get actual size
+      format,
+      hasLazyLoading,
+    });
+    
+    // Check for large images without dimensions
+    if (!width || !height) {
+      issues.push({
+        type: "image_missing_dimensions",
+        severity: "info",
+        message: "Image missing width/height attributes",
+        details: `Image: ${src.substring(0, 50)}`,
+      });
+    }
+    
+    // Check for missing lazy loading on images below fold
+    if (!hasLazyLoading && imagesTotal > 3) {
+      issues.push({
+        type: "image_missing_lazy_loading",
+        severity: "info",
+        message: "Consider lazy loading images for better performance",
+      });
     }
   });
   
@@ -320,6 +556,40 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
       severity: "warning",
       message: "Images missing alt text",
       details: `${imagesMissingAlt} of ${imagesTotal} images`,
+    });
+  }
+  
+  // Hreflang tags
+  const hreflangTags: Array<{ lang: string; url: string }> = [];
+  $('link[rel="alternate"][hreflang]').each((_, el) => {
+    const lang = $(el).attr("hreflang") || "";
+    const href = $(el).attr("href") || "";
+    if (lang && href) {
+      hreflangTags.push({ lang, url: href });
+    }
+  });
+  
+  // Last modified date
+  const lastModified = $('meta[http-equiv="last-modified"]').attr("content") || null;
+  
+  // Content hash for duplicate detection (hash of main content)
+  const mainContent = $("main").text() || $("article").text() || $("body").text();
+  const contentHash = Buffer.from(mainContent.replace(/\s+/g, " ").trim()).toString("base64").substring(0, 32);
+  
+  // E-E-A-T signals
+  const hasAuthorInfo = $('meta[name="author"]').length > 0 || 
+                        $('[rel="author"]').length > 0 ||
+                        $('.author').length > 0 ||
+                        $('[itemprop="author"]').length > 0;
+  const hasDatePublished = $('meta[property="article:published_time"]').length > 0 ||
+                          $('time[datetime]').length > 0 ||
+                          $('[itemprop="datePublished"]').length > 0;
+  
+  if (!hasAuthorInfo && (hasArticle || wordCount > 500)) {
+    issues.push({
+      type: "missing_author_info",
+      severity: "info",
+      message: "Missing author information (E-E-A-T signal)",
     });
   }
   
@@ -366,13 +636,27 @@ async function crawlPage(url: string, baseDomain: string): Promise<CrawlResult> 
     wordCount,
     internalLinks,
     externalLinks,
+    internalLinkUrls,
+    externalLinkUrls,
     imagesTotal,
     imagesMissingAlt,
+    imageDetails,
     canonicalUrl,
     hasRobotsNoindex,
     hasRobotsNofollow,
     loadTimeMs,
     issues,
+    urlSlug,
+    urlDepth,
+    isHttps,
+    hasMobileViewport,
+    openGraph,
+    schema,
+    hreflangTags,
+    lastModified,
+    contentHash,
+    hasAuthorInfo,
+    hasDatePublished,
   };
 }
 

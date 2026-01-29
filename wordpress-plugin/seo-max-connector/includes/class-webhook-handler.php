@@ -121,6 +121,31 @@ class SEO_Max_Webhook_Handler {
                 
             case 'generic_improvement':
                 return $this->handle_generic_improvement($data);
+            
+            // New improvement types
+            case 'add_schema':
+                return $this->handle_add_schema($data);
+                
+            case 'add_internal_link':
+                return $this->handle_add_internal_link($data);
+                
+            case 'fix_broken_link':
+                return $this->handle_fix_broken_link($data);
+                
+            case 'optimize_url':
+                return $this->handle_optimize_url($data);
+                
+            case 'add_open_graph':
+                return $this->handle_add_open_graph($data);
+                
+            case 'optimize_images':
+                return $this->handle_optimize_images($data);
+                
+            case 'add_author_info':
+                return $this->handle_add_author_info($data);
+                
+            case 'update_viewport':
+                return $this->handle_update_viewport($data);
                 
             default:
                 return new WP_Error('unknown_action', 'Unknown webhook action: ' . $action);
@@ -516,6 +541,271 @@ class SEO_Max_Webhook_Handler {
         return array(
             'processed' => count($results),
             'results' => $results,
+        );
+    }
+    
+    /**
+     * Handle improvement: add schema markup
+     */
+    private function handle_add_schema($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $schema_type = isset($data['schema_type']) ? $data['schema_type'] : null;
+        $schema_json = isset($data['schema_json']) ? $data['schema_json'] : null;
+        
+        if (!$schema_type || !$schema_json) {
+            return new WP_Error('missing_data', 'Schema type and JSON are required');
+        }
+        
+        // Store schema markup
+        update_post_meta($entity_id, '_seo_max_schema_' . $schema_type, $schema_json);
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'schema_type' => $schema_type,
+        );
+    }
+    
+    /**
+     * Handle improvement: add internal link
+     */
+    private function handle_add_internal_link($data) {
+        $source_id = $this->resolve_entity_id($data);
+        if (is_wp_error($source_id)) {
+            return $source_id;
+        }
+        
+        $target_url = isset($data['target_url']) ? $data['target_url'] : null;
+        $anchor_text = isset($data['anchor_text']) ? $data['anchor_text'] : null;
+        
+        if (!$target_url || !$anchor_text) {
+            return new WP_Error('missing_data', 'Target URL and anchor text are required');
+        }
+        
+        // Store recommendation for manual review (auto-inserting links into content is risky)
+        $recommendations = get_post_meta($source_id, '_seo_max_internal_link_recommendations', true);
+        if (!is_array($recommendations)) {
+            $recommendations = array();
+        }
+        
+        $recommendations[] = array(
+            'target_url' => $target_url,
+            'anchor_text' => $anchor_text,
+            'added_at' => current_time('mysql'),
+        );
+        
+        update_post_meta($source_id, '_seo_max_internal_link_recommendations', $recommendations);
+        
+        return array(
+            'success' => true,
+            'post_id' => $source_id,
+            'message' => 'Internal link recommendation stored',
+        );
+    }
+    
+    /**
+     * Handle improvement: fix broken link
+     */
+    private function handle_fix_broken_link($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $broken_url = isset($data['broken_url']) ? $data['broken_url'] : null;
+        $replacement_url = isset($data['replacement_url']) ? $data['replacement_url'] : null;
+        
+        if (!$broken_url) {
+            return new WP_Error('missing_data', 'Broken URL is required');
+        }
+        
+        $post = get_post($entity_id);
+        if (!$post) {
+            return new WP_Error('post_not_found', 'Post not found');
+        }
+        
+        $content = $post->post_content;
+        
+        // Replace broken link
+        if ($replacement_url) {
+            $content = str_replace('href="' . esc_url($broken_url) . '"', 'href="' . esc_url($replacement_url) . '"', $content);
+        } else {
+            // Remove broken link
+            $content = preg_replace('/<a[^>]*href=["\']' . preg_quote($broken_url, '/') . '["\'][^>]*>.*?<\/a>/i', '', $content);
+        }
+        
+        $result = wp_update_post(array(
+            'ID' => $entity_id,
+            'post_content' => $content,
+        ));
+        
+        if (is_wp_error($result)) {
+            return $result;
+        }
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'updated' => array('broken_link_fixed' => true),
+        );
+    }
+    
+    /**
+     * Handle improvement: optimize URL (slug)
+     */
+    private function handle_optimize_url($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $new_slug = isset($data['new_slug']) ? $data['new_slug'] : null;
+        
+        if (!$new_slug) {
+            return new WP_Error('missing_data', 'New slug is required');
+        }
+        
+        $result = wp_update_post(array(
+            'ID' => $entity_id,
+            'post_name' => sanitize_title($new_slug),
+        ));
+        
+        if (is_wp_error($result)) {
+            return $result;
+        }
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'new_slug' => $new_slug,
+        );
+    }
+    
+    /**
+     * Handle improvement: add Open Graph tags
+     */
+    private function handle_add_open_graph($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $og_title = isset($data['og_title']) ? $data['og_title'] : null;
+        $og_description = isset($data['og_description']) ? $data['og_description'] : null;
+        $og_image = isset($data['og_image']) ? $data['og_image'] : null;
+        
+        if ($og_title) {
+            update_post_meta($entity_id, '_seo_max_og_title', sanitize_text_field($og_title));
+        }
+        if ($og_description) {
+            update_post_meta($entity_id, '_seo_max_og_description', sanitize_textarea_field($og_description));
+        }
+        if ($og_image) {
+            update_post_meta($entity_id, '_seo_max_og_image', esc_url_raw($og_image));
+        }
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'updated' => array('og_title' => !empty($og_title), 'og_description' => !empty($og_description), 'og_image' => !empty($og_image)),
+        );
+    }
+    
+    /**
+     * Handle improvement: optimize images
+     */
+    private function handle_optimize_images($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $image_updates = isset($data['image_updates']) ? $data['image_updates'] : array();
+        
+        $updated = 0;
+        foreach ($image_updates as $update) {
+            $image_url = isset($update['image_url']) ? $update['image_url'] : null;
+            $alt_text = isset($update['alt_text']) ? $update['alt_text'] : null;
+            $lazy_loading = isset($update['lazy_loading']) ? $update['lazy_loading'] : null;
+            
+            if ($image_url) {
+                $attachment_id = attachment_url_to_postid($image_url);
+                if ($attachment_id) {
+                    if ($alt_text) {
+                        update_post_meta($attachment_id, '_wp_attachment_image_alt', sanitize_text_field($alt_text));
+                    }
+                    if ($lazy_loading !== null) {
+                        update_post_meta($attachment_id, '_seo_max_lazy_loading', $lazy_loading);
+                    }
+                    $updated++;
+                }
+            }
+        }
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'images_updated' => $updated,
+        );
+    }
+    
+    /**
+     * Handle improvement: add author info
+     */
+    private function handle_add_author_info($data) {
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        $author_name = isset($data['author_name']) ? $data['author_name'] : null;
+        $author_url = isset($data['author_url']) ? $data['author_url'] : null;
+        
+        if ($author_name) {
+            update_post_meta($entity_id, '_seo_max_author_name', sanitize_text_field($author_name));
+        }
+        if ($author_url) {
+            update_post_meta($entity_id, '_seo_max_author_url', esc_url_raw($author_url));
+        }
+        
+        // Also update post author if user exists
+        if ($author_name) {
+            $user = get_user_by('login', sanitize_user($author_name));
+            if ($user) {
+                wp_update_post(array(
+                    'ID' => $entity_id,
+                    'post_author' => $user->ID,
+                ));
+            }
+        }
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'updated' => array('author_info' => true),
+        );
+    }
+    
+    /**
+     * Handle improvement: update viewport meta tag
+     */
+    private function handle_update_viewport($data) {
+        // Viewport is typically handled by theme, but we can store recommendation
+        $entity_id = $this->resolve_entity_id($data);
+        if (is_wp_error($entity_id)) {
+            return $entity_id;
+        }
+        
+        update_post_meta($entity_id, '_seo_max_viewport_recommendation', 'Add viewport meta tag: <meta name="viewport" content="width=device-width, initial-scale=1">');
+        
+        return array(
+            'success' => true,
+            'post_id' => $entity_id,
+            'message' => 'Viewport recommendation stored (typically handled by theme)',
         );
     }
 }

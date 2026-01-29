@@ -123,6 +123,7 @@ export async function applyImprovementToWordPress(
  */
 function buildImprovementPayload(improvement: Record<string, unknown>): Record<string, unknown> {
   const suggestedValue = improvement.suggested_value as Record<string, unknown> | null;
+  const currentValue = improvement.current_value as Record<string, unknown> | null;
 
   switch (improvement.improvement_type) {
     case "missing_title":
@@ -159,6 +160,7 @@ function buildImprovementPayload(improvement: Record<string, unknown>): Record<s
         recommendation: suggestedValue?.recommendation || "",
       };
 
+    case "stale_content":
     case "content_freshness":
       return {
         action: "update_content",
@@ -166,17 +168,90 @@ function buildImprovementPayload(improvement: Record<string, unknown>): Record<s
         summary: suggestedValue?.summary || "",
       };
 
+    case "missing_faq_schema":
     case "faq_generation":
       return {
         action: "add_faq",
         faq_items: suggestedValue?.faqItems || [],
       };
 
-    case "image_optimization":
+    case "missing_product_schema":
+    case "missing_article_schema":
       return {
-        action: "update_image_alt",
-        alt_text: suggestedValue?.altText || "",
-        image_url: suggestedValue?.imageUrl || "",
+        action: "add_schema",
+        schema_type: improvement.improvement_type.replace("missing_", "").replace("_schema", ""),
+        schema_json: suggestedValue?.schemaJson || {},
+      };
+
+    case "internal_linking":
+      return {
+        action: "add_internal_link",
+        target_url: currentValue?.targetUrl || "",
+        anchor_text: suggestedValue?.anchorText || "",
+      };
+
+    case "broken_external_link":
+      return {
+        action: "fix_broken_link",
+        broken_url: currentValue?.brokenLink || "",
+        replacement_url: suggestedValue?.replacementUrl || null,
+      };
+
+    case "url_optimization":
+      return {
+        action: "optimize_url",
+        new_slug: suggestedValue?.newSlug || "",
+      };
+
+    case "missing_og_title":
+    case "missing_og_image":
+    case "missing_og_description":
+      return {
+        action: "add_open_graph",
+        og_title: currentValue?.ogTitle || suggestedValue?.ogTitle || null,
+        og_description: currentValue?.ogDescription || suggestedValue?.ogDescription || null,
+        og_image: currentValue?.ogImage || suggestedValue?.ogImage || null,
+      };
+
+    case "unoptimized_images":
+    case "images_no_lazy_loading":
+      return {
+        action: "optimize_images",
+        image_updates: suggestedValue?.imageUpdates || [],
+      };
+
+    case "missing_author_info":
+      return {
+        action: "add_author_info",
+        author_name: suggestedValue?.authorName || "",
+        author_url: suggestedValue?.authorUrl || null,
+      };
+
+    case "missing_mobile_viewport":
+      return {
+        action: "update_viewport",
+      };
+
+    case "redirect_chain":
+      return {
+        action: "generic_improvement",
+        suggested_value: suggestedValue,
+        recommendation: suggestedValue?.recommendation || "Fix redirect chain manually",
+      };
+
+    case "duplicate_content":
+    case "keyword_cannibalization":
+    case "orphan_page":
+    case "external_link_quality":
+    case "core_web_vitals":
+    case "sitemap_validation":
+    case "not_https":
+    case "keyword_suggestion":
+      // These require manual review or complex actions
+      return {
+        action: "generic_improvement",
+        suggested_value: suggestedValue,
+        recommendation: suggestedValue?.recommendation || "",
       };
 
     default:

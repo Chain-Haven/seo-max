@@ -222,9 +222,21 @@ final class SEO_Max_Connector {
             ), 400);
         }
         
-        // Extract the action and data
-        $action = isset($body['action']) ? $body['action'] : 'generic_improvement';
-        $data = array_merge($body, array('action' => $action));
+        // Extract the action from improvement_type or use provided action
+        $action = isset($body['action']) ? $body['action'] : null;
+        
+        // If no action, map improvement_type to action
+        if (!$action && isset($body['improvement_type'])) {
+            $action = $this->map_improvement_type_to_action($body['improvement_type']);
+        }
+        
+        if (!$action) {
+            $action = 'generic_improvement';
+        }
+        
+        // Prepare data for webhook handler
+        $data = $body;
+        unset($data['action']); // Remove action from data, webhook handler expects it separately
         
         // Use the webhook handler to process the improvement
         if (!$this->webhook_handler) {
@@ -243,6 +255,36 @@ final class SEO_Max_Connector {
         $result = $this->webhook_handler->handle_webhook($fake_request);
         
         return $result;
+    }
+    
+    /**
+     * Map improvement type to webhook action
+     */
+    private function map_improvement_type_to_action($improvement_type) {
+        $mapping = array(
+            'missing_title' => 'update_meta',
+            'missing_description' => 'update_meta',
+            'thin_content' => 'expand_content',
+            'missing_h1' => 'update_heading',
+            'duplicate_h1' => 'update_heading',
+            'images_missing_alt' => 'update_images',
+            'stale_content' => 'update_content',
+            'missing_faq_schema' => 'add_faq',
+            'missing_product_schema' => 'add_schema',
+            'missing_article_schema' => 'add_schema',
+            'internal_linking' => 'add_internal_link',
+            'broken_external_link' => 'fix_broken_link',
+            'url_optimization' => 'optimize_url',
+            'missing_og_title' => 'add_open_graph',
+            'missing_og_image' => 'add_open_graph',
+            'missing_og_description' => 'add_open_graph',
+            'unoptimized_images' => 'optimize_images',
+            'images_no_lazy_loading' => 'optimize_images',
+            'missing_author_info' => 'add_author_info',
+            'missing_mobile_viewport' => 'update_viewport',
+        );
+        
+        return isset($mapping[$improvement_type]) ? $mapping[$improvement_type] : 'generic_improvement';
     }
     
     /**
