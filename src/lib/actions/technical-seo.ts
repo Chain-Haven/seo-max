@@ -60,7 +60,7 @@ export async function checkCoreWebVitals(
     return {
       data: {
         score: evaluation.performanceScore,
-        vitals: { lcp: vitals.lcp, fid: vitals.fid, cls: vitals.cls },
+        vitals: { lcp: vitals.lcp ?? 0, fid: vitals.fid ?? 0, cls: vitals.cls ?? 0 },
         recommendations: evaluation.recommendations,
       },
       error: null,
