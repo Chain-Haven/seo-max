@@ -230,6 +230,26 @@ export default async function StoreDetailPage({ params }: Props) {
         </Card>
       </Link>
 
+      {/* Auto Optimize All Content */}
+      <Link href={`/dashboard/stores/${storeId}/auto-optimize`}>
+        <Card className="hover:border-primary/50 transition-colors cursor-pointer border-2 border-amber-500/40 bg-gradient-to-r from-amber-500/10 to-orange-500/10">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500">
+                <Sparkles className="h-6 w-6 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-base">Auto Optimize All Content</p>
+                <p className="text-sm text-muted-foreground">
+                  Bulk optimize meta titles, descriptions for all products, pages, and posts with AI
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 ml-auto" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* Additional Tools - Row 1 */}
       <div className="grid gap-4 md:grid-cols-6">
         <Link href={`/dashboard/stores/${storeId}/keywords`}>
