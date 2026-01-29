@@ -477,8 +477,18 @@ export function EnhancedBlogCreator({
 
   // Ultra Optimize to 95+ SEO score with all features
   const handleUltraOptimize = async () => {
-    if (!content || !keyword) {
-      toast.error("Content and keyword are required");
+    // Validate inputs
+    if (!content || content.trim().length < 50) {
+      toast.error("Content is required", {
+        description: "Please add at least some content before optimizing.",
+      });
+      return;
+    }
+    
+    if (!keyword || keyword.trim().length === 0) {
+      toast.error("Keyword is required", {
+        description: "Please enter a target keyword first.",
+      });
       return;
     }
 
@@ -492,13 +502,11 @@ export function EnhancedBlogCreator({
     const phases = [
       { progress: 10, message: "Optimizing title & meta..." },
       { progress: 20, message: "Expanding content..." },
-      { progress: 30, message: "Optimizing keywords..." },
-      { progress: 40, message: "Improving structure..." },
+      { progress: 35, message: "Improving structure..." },
       { progress: 50, message: "Generating FAQ section..." },
-      { progress: 60, message: "Adding key takeaways..." },
-      { progress: 70, message: "Generating statistics..." },
-      { progress: 80, message: "Creating images..." },
-      { progress: 90, message: "Adding author & CTA..." },
+      { progress: 65, message: "Adding key takeaways & tips..." },
+      { progress: 75, message: "Generating statistics..." },
+      { progress: 85, message: "Adding author & CTA..." },
       { progress: 95, message: "Final polish..." },
     ];
 
@@ -510,7 +518,7 @@ export function EnhancedBlogCreator({
         setUltraOptimizeMessage(phases[phaseIndex].message);
         phaseIndex++;
       }
-    }, 3000);
+    }, 4000); // Slightly longer interval for more realistic progress
 
     try {
       console.log("[UltraOptimize Client] Starting with:", {
@@ -522,135 +530,142 @@ export function EnhancedBlogCreator({
 
       const result = await ultraOptimizeBlog(
         content,
-        title,
-        metaTitle,
-        metaDescription,
+        title || keyword,
+        metaTitle || title || keyword,
+        metaDescription || "",
         [keyword],
         {
           targetScore: 95,
-          generateImages: true,
+          generateImages: false, // Skip image generation for speed
           storeName: storeName,
         }
       );
 
       clearInterval(progressInterval);
+      setAutoImproveProgress(100);
       
       console.log("[UltraOptimize Client] Result received:", {
         success: result.success,
         contentLength: result.content?.length,
+        contentChanged: result.content !== content,
         error: result.error,
         improvements: result.improvements?.length,
         finalScore: result.finalScore?.overall,
       });
 
-      if (result.success) {
-        // Update all content
+      // ALWAYS update content if we received any
+      let hasChanges = false;
+      
+      if (result.content && result.content.length > 0) {
         setContent(result.content);
+        hasChanges = true;
+        console.log("[UltraOptimize Client] Content updated");
+      }
+      
+      if (result.title && result.title.length > 0) {
         setTitle(result.title);
+        hasChanges = true;
+      }
+      
+      if (result.metaTitle && result.metaTitle.length > 0) {
         setMetaTitle(result.metaTitle);
+        hasChanges = true;
+      }
+      
+      if (result.metaDescription && result.metaDescription.length > 0) {
         setMetaDescription(result.metaDescription);
-        
-        // Update images
-        if (result.images.length > 0) {
-          setGeneratedImages(result.images);
-        }
-        
-        // Update score
+        hasChanges = true;
+      }
+      
+      if (result.images && result.images.length > 0) {
+        // Map to ensure type compatibility
+        const mappedImages = result.images.map(img => ({
+          url: img.url,
+          altText: img.altText,
+          type: img.type,
+          prompt: img.prompt || "",
+        }));
+        setGeneratedImages(prev => [...prev, ...mappedImages]);
+        hasChanges = true;
+      }
+      
+      // Update score if we have one
+      if (result.finalScore?.overall) {
         setContentScore({
           overall: result.finalScore.overall,
           grade: result.finalScore.grade,
           breakdown: convertScoreBreakdown(result.finalScore.breakdown),
-          suggestions: result.finalScore.prioritizedRecommendations,
+          suggestions: result.finalScore.prioritizedRecommendations || [],
         });
-
-        // Track generated features
-        const features = [];
-        if (result.generatedFeatures.faqSection) features.push("FAQ Section");
-        if (result.generatedFeatures.keyTakeaways) features.push("Key Takeaways");
-        if (result.generatedFeatures.proTips) features.push("Pro Tips");
-        if (result.generatedFeatures.statistics) features.push("Statistics");
-        if (result.generatedFeatures.comparisonTable) features.push("Comparison Table");
-        if (result.generatedFeatures.authorBio) features.push("Author Bio");
-        if (result.generatedFeatures.callToAction) features.push("Call-to-Action");
-        if (result.images.length > 0) features.push(`${result.images.length} Images`);
-        
-        setGeneratedFeatures(features);
-
-        toast.success(`Ultra optimized to ${result.finalScore.overall}! 🏆`, {
-          description: `${result.improvements.length} improvements in ${result.iterations} phases.`,
-        });
-
-        if (features.length > 0) {
-          toast.info("Generated features", {
-            description: features.join(", "),
-          });
-        }
-      } else {
-        // Not fully successful but may have partial results
-        console.log("[UltraOptimize Client] Partial result:", {
-          error: result.error,
-          hasContent: !!result.content,
-          contentChanged: result.content !== content,
-          finalScore: result.finalScore?.overall,
-        });
-        
-        // Show warning with score achieved
-        const scoreText = result.finalScore?.overall 
-          ? `Achieved ${result.finalScore.overall}/95.` 
-          : "Could not calculate score.";
-        
-        toast.warning("Ultra optimization incomplete", {
-          description: `${scoreText} ${result.error || "Some features may not have been generated."}`,
-          duration: 8000,
-        });
-        
-        // Still update with any improved content if we have it
-        if (result.content && result.content !== content) {
-          setContent(result.content);
-          console.log("[UltraOptimize Client] Content updated despite partial success");
-        }
-        if (result.title && result.title !== title) {
-          setTitle(result.title);
-        }
-        if (result.metaTitle && result.metaTitle !== metaTitle) {
-          setMetaTitle(result.metaTitle);
-        }
-        if (result.metaDescription && result.metaDescription !== metaDescription) {
-          setMetaDescription(result.metaDescription);
-        }
-        
-        if (result.images && result.images.length > 0) {
-          setGeneratedImages(result.images);
-        }
-        
-        // Update score if we have one
-        if (result.finalScore?.overall) {
-          setContentScore({
-            overall: result.finalScore.overall,
-            grade: result.finalScore.grade,
-            breakdown: convertScoreBreakdown(result.finalScore.breakdown),
-            suggestions: result.finalScore.prioritizedRecommendations || [],
-          });
-        }
+        setAutoImproveCurrentScore(result.finalScore.overall);
       }
+
+      // Track generated features
+      const features: string[] = [];
+      if (result.generatedFeatures?.faqSection) features.push("FAQ Section");
+      if (result.generatedFeatures?.keyTakeaways) features.push("Key Takeaways");
+      if (result.generatedFeatures?.proTips) features.push("Pro Tips");
+      if (result.generatedFeatures?.statistics) features.push("Statistics");
+      if (result.generatedFeatures?.comparisonTable) features.push("Comparison Table");
+      if (result.generatedFeatures?.authorBio) features.push("Author Bio");
+      if (result.generatedFeatures?.callToAction) features.push("Call-to-Action");
+      if (result.images && result.images.length > 0) features.push(`${result.images.length} Images`);
+      
+      setGeneratedFeatures(features);
+
+      // Show appropriate toast based on result
+      if (result.success) {
+        toast.success(`Ultra optimized to ${result.finalScore?.overall || "high score"}! 🏆`, {
+          description: `${result.improvements?.length || 0} improvements made. ${features.length > 0 ? `Added: ${features.slice(0, 3).join(", ")}` : ""}`,
+          duration: 5000,
+        });
+      } else if (hasChanges) {
+        // Partial success - we made changes even if target wasn't reached
+        toast.success(`Content improved!`, {
+          description: `Score: ${result.finalScore?.overall || "N/A"}. ${result.improvements?.length || 0} improvements made.${result.error ? ` Note: ${result.error}` : ""}`,
+          duration: 6000,
+        });
+      } else if (result.error) {
+        // Complete failure with error
+        toast.error("Optimization failed", {
+          description: result.error,
+          duration: 10000,
+        });
+        setUltraOptimizeMessage(`Error: ${result.error}`);
+      } else {
+        // Unknown state
+        toast.warning("Optimization completed with issues", {
+          description: "Check your content for any changes.",
+          duration: 5000,
+        });
+      }
+
+      if (features.length > 0 && hasChanges) {
+        setTimeout(() => {
+          toast.info("Features added", {
+            description: features.join(", "),
+            duration: 4000,
+          });
+        }, 1000);
+      }
+
     } catch (error) {
       clearInterval(progressInterval);
       console.error("[UltraOptimize Client] Error:", error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error("Ultra optimization failed", {
         description: errorMessage,
-        duration: 10000, // Show for 10 seconds so user can read it
+        duration: 10000,
       });
-      
-      // Also show in an alert for visibility
       setUltraOptimizeMessage(`Error: ${errorMessage}`);
     } finally {
       setIsUltraOptimizing(false);
       setIsAutoImproving(false);
+      // Keep error message visible longer if there was an error
+      const delay = ultraOptimizeMessage.startsWith("Error") ? 5000 : 2000;
       setTimeout(() => {
         setUltraOptimizeMessage("");
-        setAutoImproveProgress(100);
-      }, 3000); // Keep error message visible for 3 seconds
+      }, delay);
     }
   };
 
