@@ -7,7 +7,8 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { crawlSite, saveCrawlResults, getCrawlResults } from "@/lib/actions/site-crawler";
+import { crawlSite, type CrawlResult } from "@/lib/seo/site-crawler";
+import { getCrawlResults } from "@/lib/actions/site-crawler";
 import { generateImprovementsFromCrawl } from "@/lib/actions/crawl-to-improvements";
 import { bulkApplyImprovements } from "@/lib/actions/apply-improvements";
 
@@ -167,18 +168,51 @@ export async function runAutonomousSEO(
       // Perform the crawl
       const crawlResult = await crawlSite(store.url, {
         maxPages: maxPagesToScan,
-        respectRobots: true,
-        timeout: 30000,
       });
 
-      if (crawlResult.pages.length === 0) {
+      if (crawlResult.results.length === 0) {
         throw new Error("No pages found during crawl");
       }
 
-      await updateProgress("crawl", 30, `Found ${crawlResult.pages.length} pages, saving results...`);
+      await updateProgress("crawl", 30, `Found ${crawlResult.results.length} pages, saving results...`);
 
-      // Save crawl results
-      await saveCrawlResults(storeId, crawl.id, crawlResult);
+      // Save crawl results inline (each page to crawled_pages table)
+      for (const page of crawlResult.results) {
+        await serviceClient.from("crawled_pages").insert({
+          crawl_id: crawl.id,
+          store_id: storeId,
+          url: page.url,
+          status_code: page.statusCode,
+          title: page.title,
+          meta_description: page.metaDescription,
+          h1_tags: page.h1Tags,
+          h2_tags: page.h2Tags,
+          word_count: page.wordCount,
+          internal_links: page.internalLinks,
+          external_links: page.externalLinks,
+          internal_link_urls: page.internalLinkUrls,
+          external_link_urls: page.externalLinkUrls,
+          images_total: page.imagesTotal,
+          images_missing_alt: page.imagesMissingAlt,
+          image_details: page.imageDetails,
+          canonical_url: page.canonicalUrl,
+          has_robots_noindex: page.hasRobotsNoindex,
+          has_robots_nofollow: page.hasRobotsNofollow,
+          load_time_ms: page.loadTimeMs,
+          issues: page.issues,
+          url_slug: page.urlSlug,
+          url_depth: page.urlDepth,
+          is_https: page.isHttps,
+          has_mobile_viewport: page.hasMobileViewport,
+          open_graph: page.openGraph,
+          schema_data: page.schema,
+          hreflang_tags: page.hreflangTags,
+          last_modified: page.lastModified,
+          content_hash: page.contentHash,
+          has_author_info: page.hasAuthorInfo,
+          has_date_published: page.hasDatePublished,
+        });
+      }
 
       // Update crawl status
       await serviceClient
@@ -187,17 +221,17 @@ export async function runAutonomousSEO(
           status: "completed",
           completed_at: new Date().toISOString(),
           pages_found: crawlResult.summary.totalPages,
-          pages_crawled: crawlResult.pages.length,
+          pages_crawled: crawlResult.results.length,
         })
         .eq("id", crawl.id);
 
       result.stages.crawl = {
         success: true,
-        pagesScanned: crawlResult.pages.length,
+        pagesScanned: crawlResult.results.length,
       };
-      result.summary.pagesScanned = crawlResult.pages.length;
+      result.summary.pagesScanned = crawlResult.results.length;
 
-      await updateProgress("crawl", 40, `Crawl complete: ${crawlResult.pages.length} pages scanned`);
+      await updateProgress("crawl", 40, `Crawl complete: ${crawlResult.results.length} pages scanned`);
 
       // ==================== STAGE 2: ANALYSIS ====================
       await updateProgress("analysis", 45, "Analyzing pages for SEO issues...");

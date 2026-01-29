@@ -398,11 +398,13 @@ export async function autoInsertInternalLinks(
 
       // Case-insensitive replacement of first occurrence
       const regex = new RegExp(`\\b(${keyword}s?)\\b(?![^<]*>)`, "i");
-      if (regex.test(modifiedContent)) {
-        modifiedContent = modifiedContent.replace(regex, (match) => {
-          return `<a href="${suggestion.url}" title="${suggestion.title}">${match}</a>`;
+      const matchResult = modifiedContent.match(regex);
+      if (matchResult && matchResult[0]) {
+        const matchedText = matchResult[0];
+        modifiedContent = modifiedContent.replace(regex, () => {
+          return `<a href="${suggestion.url}" title="${suggestion.title}">${matchedText}</a>`;
         });
-        insertedLinks.push({ url: suggestion.url, anchorText: match });
+        insertedLinks.push({ url: suggestion.url, anchorText: matchedText });
         inserted = true;
         break;
       }
