@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 function generateSlug(name: string): string {
@@ -24,19 +24,24 @@ export async function createOrganization(name: string) {
 
   const slug = generateSlug(name);
 
+  // Use service client to bypass RLS for organization creation
+  // (user can't be a member of an org that doesn't exist yet)
+  const serviceClient = await createServiceClient();
+
   // Create organization
-  const { data: org, error: orgError } = await supabase
+  const { data: org, error: orgError } = await serviceClient
     .from("organizations")
     .insert({ name, slug })
     .select()
     .single();
 
   if (orgError) {
+    console.error("Organization creation error:", orgError);
     return { error: orgError.message };
   }
 
-  // Add user as owner
-  const { error: memberError } = await supabase
+  // Add user as owner (also use service client to bypass RLS)
+  const { error: memberError } = await serviceClient
     .from("organization_members")
     .insert({
       organization_id: org.id,
@@ -46,7 +51,8 @@ export async function createOrganization(name: string) {
 
   if (memberError) {
     // Rollback org creation
-    await supabase.from("organizations").delete().eq("id", org.id);
+    console.error("Member creation error:", memberError);
+    await serviceClient.from("organizations").delete().eq("id", org.id);
     return { error: memberError.message };
   }
 
