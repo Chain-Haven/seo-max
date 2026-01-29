@@ -41,6 +41,7 @@ import {
 import { ApiKeyManager } from "@/components/dashboard/api-key-manager";
 import { StoreStatusBadge } from "@/components/dashboard/store-status-badge";
 import { SEOAuditPanel } from "@/components/seo/seo-audit-panel";
+import { AutoOptimizeButton } from "@/components/seo/auto-optimize-button";
 import { ApiCredentialsForm } from "@/components/settings/api-credentials-form";
 import { getStoreApiCredentials } from "@/lib/actions/api-credentials";
 
@@ -117,6 +118,11 @@ export default async function StoreDetailPage({ params }: Props) {
             <StoreStatusBadge status={store.status} />
           </div>
           <div className="flex items-center gap-2">
+            <AutoOptimizeButton
+              storeId={storeId}
+              storeName={store.name}
+              storeStatus={store.status}
+            />
             <a href={store.url} target="_blank" rel="noopener noreferrer">
               <Button variant="outline">
                 <ExternalLink className="mr-2 h-4 w-4" />

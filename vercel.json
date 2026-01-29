@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/autonomous-dev",
       "schedule": "0 2 * * 0"
+    },
+    {
+      "path": "/api/cron/auto-seo",
+      "schedule": "0 4 * * *"
     }
   ]
 }
