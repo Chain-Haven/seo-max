@@ -28,6 +28,12 @@ export async function createOrganization(name: string) {
   // (user can't be a member of an org that doesn't exist yet)
   const serviceClient = await createServiceClient();
 
+  // Verify service role key is available
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("SUPABASE_SERVICE_ROLE_KEY is not set - cannot bypass RLS");
+    return { error: "Server configuration error. Please contact support." };
+  }
+
   // Create organization
   const { data: org, error: orgError } = await serviceClient
     .from("organizations")
