@@ -332,6 +332,46 @@ export default async function StoreDetailPage({ params }: Props) {
         </Link>
       </div>
 
+      {/* SEO Analysis Tools */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Link href={`/dashboard/stores/${storeId}/seo-health`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer border-2 border-green-500/40 bg-gradient-to-r from-green-500/10 to-emerald-500/10">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-emerald-500">
+                  <FileBarChart className="h-6 w-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-base">SEO Health Score</p>
+                  <p className="text-sm text-muted-foreground">
+                    Comprehensive SEO health analysis with technical, content, backlinks & rankings
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 ml-auto" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/dashboard/stores/${storeId}/serp-analysis`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer border-2 border-blue-500/40 bg-gradient-to-r from-blue-500/10 to-indigo-500/10">
+            <CardContent className="pt-4 pb-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-500">
+                  <Search className="h-6 w-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-base">SERP Analysis</p>
+                  <p className="text-sm text-muted-foreground">
+                    Analyze search results with SerpAPI - rankings, features, competitors
+                  </p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 ml-auto" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
       {/* Additional Tools - Row 2 */}
       <div className="grid gap-4 md:grid-cols-6">
         <Link href={`/dashboard/stores/${storeId}/analytics`}>
