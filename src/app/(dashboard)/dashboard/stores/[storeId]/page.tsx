@@ -426,20 +426,20 @@ export default async function StoreDetailPage({ params }: Props) {
             </CardContent>
           </Card>
         </Link>
-        <Link href={`/dashboard/stores/${storeId}/bulk`}>
-          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+        <Link href={`/dashboard/stores/${storeId}/content-calendar`}>
+          <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full border-cyan-500/30 bg-cyan-500/5">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">
                 <Layers className="h-5 w-5 text-cyan-500" />
                 <div>
-                  <p className="font-medium text-sm">Bulk Ops</p>
-                  <p className="text-xs text-muted-foreground">Mass updates</p>
+                  <p className="font-medium text-sm">Content Calendar</p>
+                  <p className="text-xs text-muted-foreground">AI ideas</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </Link>
-        <Link href={`/dashboard/stores/${storeId}/schema`}>
+        <Link href={`/dashboard/stores/${storeId}/advanced-tools`}>
           <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
             <CardContent className="pt-4">
               <div className="flex items-center gap-3">

@@ -19,6 +19,10 @@
     {
       "path": "/api/cron/auto-seo",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/daily-seo-audit",
+      "schedule": "0 5 * * *"
     }
   ]
 }
