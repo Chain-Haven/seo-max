@@ -20,11 +20,12 @@ export interface URLAnalysis {
 export function analyzeURL(url: string): URLAnalysis {
   const issues: URLAnalysis["issues"] = [];
   let score = 100;
+  let slug = "";
 
   try {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname;
-    const slug = pathname.split("/").filter(Boolean).pop() || "";
+    slug = pathname.split("/").filter(Boolean).pop() || "";
 
     // Check URL length
     if (url.length > 75) {

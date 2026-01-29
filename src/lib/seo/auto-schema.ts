@@ -2,11 +2,11 @@
  * Auto-generate schema markup for pages missing it
  */
 
-import { generateProductSchema, generateFAQSchema, generateArticleSchema, schemaToScript } from "@/lib/ai/schema-generator";
+import { generateProductSchema, generateFAQSchema, schemaToScript } from "@/lib/ai/schema-generator";
 
 export interface SchemaGenerationResult {
   schemaType: string;
-  schemaJson: Record<string, unknown>;
+  schemaJson: object;
   schemaScript: string;
 }
 
@@ -35,7 +35,7 @@ export async function generateProductSchemaAuto(
       brand: productData.brand,
       price: productData.price || 0,
       currency: productData.currency || "USD",
-      availability: productData.availability || "InStock",
+      availability: (productData.availability as "InStock" | "OutOfStock" | "PreOrder") || "InStock",
       url: productData.url,
     });
 
