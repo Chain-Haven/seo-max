@@ -131,7 +131,7 @@ export default async function AIAssistantPage() {
                   <Badge className="bg-gradient-to-r from-primary to-purple-600 text-white">AI-Powered</Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  AI continuously detects issues, prioritizes fixes, and implements improvements automatically every 6 hours
+                  AI continuously detects issues, prioritizes fixes, and implements improvements automatically every day
                 </p>
               </div>
               <ChevronRight className="h-6 w-6 text-muted-foreground" />

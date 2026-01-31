@@ -3,8 +3,8 @@ import { runImprovementCycle, getSystemHealth } from "@/lib/actions/continuous-i
 
 /**
  * Continuous Improvement Cron Job
- * Runs every 6 hours to detect and implement improvements
- * Configured in vercel.json with schedule: "0 * /6 * * *" (every 6 hours)
+ * Runs daily at 1 AM UTC to detect and implement improvements
+ * Configured in vercel.json with schedule: "0 1 * * *"
  */
 
 export const runtime = "nodejs";

@@ -183,7 +183,7 @@ export function ImprovementsDashboard({ health, queue, history }: Props) {
               )}
             </Button>
             <span className="text-sm text-muted-foreground">
-              Runs automatically every 6 hours
+              Runs automatically daily at 1 AM UTC
             </span>
           </div>
 
