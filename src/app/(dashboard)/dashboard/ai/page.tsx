@@ -22,6 +22,8 @@ import {
   Target,
   TrendingUp,
   PenTool,
+  Settings,
+  Activity,
 } from "lucide-react";
 
 export default async function AIAssistantPage() {
@@ -114,6 +116,29 @@ export default async function AIAssistantPage() {
           Powered by GPT-4 & Claude
         </Badge>
       </div>
+
+      {/* Autonomous Improvements Banner */}
+      <Link href="/dashboard/ai/improvements">
+        <Card className="border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 hover:border-primary/60 transition-colors cursor-pointer">
+          <CardContent className="pt-6 pb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-600">
+                <Activity className="h-7 w-7 text-white" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Autonomous Improvements</h3>
+                  <Badge className="bg-gradient-to-r from-primary to-purple-600 text-white">AI-Powered</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  AI continuously detects issues, prioritizes fixes, and implements improvements automatically every 6 hours
+                </p>
+              </div>
+              <ChevronRight className="h-6 w-6 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
 
       {/* AI Capabilities */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
