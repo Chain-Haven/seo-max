@@ -68,20 +68,31 @@ export function SERPPreview({
   const displayTitle = localTitle.length > 60 ? localTitle.substring(0, 57) + "..." : localTitle;
   const displayDescription = localDescription.length > 160 ? localDescription.substring(0, 157) + "..." : localDescription;
 
-  // Format URL for display
+  // Format URL for display with better error handling
   const formatUrl = (url: string) => {
+    if (!url) return "";
+    
     try {
-      const parsed = new URL(url);
-      return `${parsed.hostname}${parsed.pathname}`.replace(/\/$/, "");
-    } catch {
-      return url;
+      // Handle relative URLs and URLs without protocol
+      let urlToParse = url;
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        urlToParse = "https://" + url;
+      }
+      
+      const parsed = new URL(urlToParse);
+      const pathname = parsed.pathname === "/" ? "" : parsed.pathname;
+      return `${parsed.hostname}${pathname}`.replace(/\/$/, "");
+    } catch (error) {
+      // For invalid URLs, just return the cleaned version
+      console.warn("Invalid URL format:", url, error);
+      return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
     }
   };
 
   const highlightKeyword = (text: string, kw: string) => {
-    if (!kw) return text;
+    if (!kw || !text) return text;
     
-    const regex = new RegExp(`(${kw})`, "gi");
+    const regex = new RegExp(`(${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, "gi");
     const parts = text.split(regex);
     
     return parts.map((part, i) => 
@@ -254,11 +265,22 @@ export function SERPPreviewInline({
   const displayDescription = metaDescription.length > 160 ? metaDescription.substring(0, 157) + "..." : metaDescription;
 
   const formatUrl = (url: string) => {
+    if (!url) return "";
+    
     try {
-      const parsed = new URL(url);
-      return `${parsed.hostname}${parsed.pathname}`.replace(/\/$/, "");
-    } catch {
-      return url;
+      // Handle relative URLs and URLs without protocol
+      let urlToParse = url;
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        urlToParse = "https://" + url;
+      }
+      
+      const parsed = new URL(urlToParse);
+      const pathname = parsed.pathname === "/" ? "" : parsed.pathname;
+      return `${parsed.hostname}${pathname}`.replace(/\/$/, "");
+    } catch (error) {
+      // For invalid URLs, just return the cleaned version
+      console.warn("Invalid URL format:", url, error);
+      return url.replace(/^https?:\/\//, "").replace(/\/$/, "");
     }
   };
 

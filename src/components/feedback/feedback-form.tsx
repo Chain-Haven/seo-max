@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MessageSquarePlus, Loader2, Bug, Lightbulb, Sparkles, HelpCircle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { MessageSquarePlus, Loader2, Bug, Lightbulb, Sparkles, HelpCircle, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { submitFeedback, type FeedbackType } from "@/lib/actions/feedback";
 
@@ -56,35 +57,91 @@ const FEEDBACK_TYPES: Array<{ value: FeedbackType; label: string; icon: React.Re
   },
 ];
 
+const MIN_FEEDBACK_LENGTH = 10;
+const MAX_FEEDBACK_LENGTH = 2000;
+
 export function FeedbackForm({ storeId, trigger }: FeedbackFormProps) {
   const [open, setOpen] = useState(false);
   const [feedbackType, setFeedbackType] = useState<FeedbackType>("improvement");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Reset submitted state when dialog closes
+  useEffect(() => {
+    if (!open && submitted) {
+      setTimeout(() => {
+        setSubmitted(false);
+        setContent("");
+        setFeedbackType("improvement");
+      }, 300); // Wait for dialog close animation
+    }
+  }, [open, submitted]);
 
   const handleSubmit = async () => {
-    if (!content.trim()) {
+    const trimmedContent = content.trim();
+    
+    if (!trimmedContent) {
       toast.error("Please enter your feedback");
+      return;
+    }
+
+    if (trimmedContent.length < MIN_FEEDBACK_LENGTH) {
+      toast.error(`Feedback must be at least ${MIN_FEEDBACK_LENGTH} characters`);
       return;
     }
 
     setLoading(true);
     try {
-      const result = await submitFeedback(feedbackType, content, storeId);
+      const result = await submitFeedback(feedbackType, trimmedContent, storeId);
       if (result.success) {
-        toast.success("Feedback submitted! Our AI will review it.");
-        setOpen(false);
-        setContent("");
-        setFeedbackType("improvement");
+        setSubmitted(true);
+        toast.success("Thank you for your feedback!", {
+          description: "Our AI will review it and implement improvements.",
+        });
+        
+        // Close dialog after showing success state
+        setTimeout(() => {
+          setOpen(false);
+        }, 1500);
       } else {
         toast.error(result.error || "Failed to submit feedback");
       }
-    } catch {
-      toast.error("Failed to submit feedback");
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Submit on Ctrl/Cmd + Enter
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !loading) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const characterCount = content.length;
+  const characterPercentage = (characterCount / MAX_FEEDBACK_LENGTH) * 100;
+  const isValidLength = characterCount >= MIN_FEEDBACK_LENGTH && characterCount <= MAX_FEEDBACK_LENGTH;
+
+  if (submitted && open) {
+    return (
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <div className="py-12 text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Thank You!</h3>
+            <p className="text-muted-foreground">
+              Your feedback has been submitted. Our AI will review it and implement improvements.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -96,7 +153,7 @@ export function FeedbackForm({ storeId, trigger }: FeedbackFormProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" onKeyDown={handleKeyDown}>
         <DialogHeader>
           <DialogTitle>Send Feedback</DialogTitle>
           <DialogDescription>
@@ -142,21 +199,59 @@ export function FeedbackForm({ storeId, trigger }: FeedbackFormProps) {
                     : "Tell us how we can improve SEO Max..."
               }
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={(e) => setContent(e.target.value.slice(0, MAX_FEEDBACK_LENGTH))}
               disabled={loading}
               rows={5}
-              maxLength={2000}
+              className="resize-none"
             />
-            <p className="text-xs text-muted-foreground text-right">
-              {content.length}/2000
-            </p>
+            <div className="space-y-1">
+              <Progress 
+                value={characterPercentage} 
+                className={`h-1.5 transition-colors ${
+                  characterCount > MAX_FEEDBACK_LENGTH * 0.9
+                    ? "bg-orange-100"
+                    : characterCount < MIN_FEEDBACK_LENGTH
+                      ? "bg-gray-100"
+                      : "bg-green-100"
+                }`}
+              />
+              <div className="flex justify-between items-center">
+                <p className={`text-xs ${
+                  characterCount < MIN_FEEDBACK_LENGTH
+                    ? "text-muted-foreground"
+                    : characterCount > MAX_FEEDBACK_LENGTH * 0.9
+                      ? "text-orange-600"
+                      : "text-green-600"
+                }`}>
+                  {characterCount < MIN_FEEDBACK_LENGTH && (
+                    <span>{MIN_FEEDBACK_LENGTH - characterCount} more characters needed</span>
+                  )}
+                  {characterCount >= MIN_FEEDBACK_LENGTH && characterCount <= MAX_FEEDBACK_LENGTH * 0.9 && (
+                    <span>Looking good!</span>
+                  )}
+                  {characterCount > MAX_FEEDBACK_LENGTH * 0.9 && characterCount <= MAX_FEEDBACK_LENGTH && (
+                    <span>{MAX_FEEDBACK_LENGTH - characterCount} characters remaining</span>
+                  )}
+                </p>
+                <span className={`text-xs tabular-nums ${
+                  characterCount > MAX_FEEDBACK_LENGTH * 0.9
+                    ? "text-orange-600 font-medium"
+                    : "text-muted-foreground"
+                }`}>
+                  {characterCount}/{MAX_FEEDBACK_LENGTH}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading || !content.trim()}>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={loading || !isValidLength || !content.trim()}
+          >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -167,6 +262,9 @@ export function FeedbackForm({ storeId, trigger }: FeedbackFormProps) {
             )}
           </Button>
         </DialogFooter>
+        <p className="text-xs text-center text-muted-foreground">
+          Tip: Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">Enter</kbd> to submit
+        </p>
       </DialogContent>
     </Dialog>
   );
@@ -174,16 +272,56 @@ export function FeedbackForm({ storeId, trigger }: FeedbackFormProps) {
 
 /**
  * Floating feedback button that can be placed anywhere in the app.
+ * Now with better positioning and responsive behavior.
  */
 export function FloatingFeedbackButton({ storeId }: { storeId?: string }) {
+  const [isVisible, setIsVisible] = useState(true);
+
+  // Hide button when scrolling down, show when scrolling up
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const updateVisibility = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY < lastScrollY || currentScrollY < 100) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setIsVisible(false);
+      }
+      
+      lastScrollY = currentScrollY;
+      ticking = false;
+    };
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(updateVisibility);
+        ticking = true;
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div 
+      className={`fixed bottom-4 right-4 z-50 transition-all duration-300 transform ${
+        isVisible ? "translate-y-0 opacity-100" : "translate-y-20 opacity-0 pointer-events-none"
+      }`}
+    >
       <FeedbackForm
         storeId={storeId}
         trigger={
-          <Button size="lg" className="rounded-full shadow-lg">
+          <Button 
+            size="lg" 
+            className="rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            aria-label="Send feedback"
+          >
             <MessageSquarePlus className="h-5 w-5 mr-2" />
-            Feedback
+            <span className="hidden sm:inline">Feedback</span>
           </Button>
         }
       />
