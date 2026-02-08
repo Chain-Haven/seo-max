@@ -39,19 +39,35 @@ export function StoreCard({ store }: StoreCardProps) {
   const statusInfo = statusConfig[store.status] || statusConfig.disconnected;
   
   // Format the last sync date with better error handling
-  const formatLastSync = (dateString: string | null) => {
+  const formatLastSync = (dateString: string | null): string | null => {
     if (!dateString) return null;
     
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return null;
       
-      // Show relative time for recent syncs
+      // Check for invalid date
+      if (isNaN(date.getTime())) {
+        console.warn(`Invalid date format for store ${store.id}:`, dateString);
+        return null;
+      }
+      
       const now = new Date();
-      const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+      const diffInMs = now.getTime() - date.getTime();
+      
+      // Handle future dates
+      if (diffInMs < 0) {
+        console.warn(`Future date detected for store ${store.id}:`, dateString);
+        return "Just now";
+      }
+      
+      const diffInHours = diffInMs / (1000 * 60 * 60);
       
       if (diffInHours < 1) {
-        return "Less than an hour ago";
+        const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+        if (diffInMinutes < 1) {
+          return "Just now";
+        }
+        return `${diffInMinutes} ${diffInMinutes === 1 ? "minute" : "minutes"} ago`;
       } else if (diffInHours < 24) {
         const hours = Math.floor(diffInHours);
         return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
@@ -60,13 +76,14 @@ export function StoreCard({ store }: StoreCardProps) {
         return `${days} ${days === 1 ? "day" : "days"} ago`;
       }
       
+      // For older dates, show the actual date
       return date.toLocaleDateString(undefined, {
         month: "short",
         day: "numeric",
         year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
       });
     } catch (error) {
-      console.error("Invalid date format:", dateString, error);
+      console.error(`Error parsing date for store ${store.id}:`, error);
       return null;
     }
   };
@@ -76,15 +93,17 @@ export function StoreCard({ store }: StoreCardProps) {
   return (
     <Link 
       href={`/dashboard/stores/${store.id}`}
-      className="block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg"
+      className="block focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 rounded-lg transition-transform hover:scale-[1.02]"
       aria-label={`View ${store.name} store details`}
     >
       <Card className="transition-all hover:shadow-md hover:border-primary/50 cursor-pointer h-full">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg font-medium line-clamp-1">{store.name}</CardTitle>
+          <CardTitle className="text-lg font-medium line-clamp-1" title={store.name}>
+            {store.name}
+          </CardTitle>
           <Badge 
             variant="outline" 
-            className={`${statusInfo.colors} flex items-center gap-1`}
+            className={`${statusInfo.colors} flex items-center gap-1 animate-in fade-in-50`}
             aria-label={`Store status: ${statusInfo.label}`}
           >
             {statusInfo.icon}
@@ -92,10 +111,10 @@ export function StoreCard({ store }: StoreCardProps) {
           </Badge>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
             <Globe className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span className="truncate" title={store.url}>{store.url}</span>
-            <ExternalLink className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+            <ExternalLink className="h-3 w-3 flex-shrink-0 ml-auto" aria-hidden="true" />
           </div>
           <div className="mt-2 flex items-center justify-between">
             <Badge variant="secondary" className="text-xs capitalize">
@@ -108,9 +127,15 @@ export function StoreCard({ store }: StoreCardProps) {
               </div>
             )}
             {store.status === "error" && (
-              <span className="text-xs text-red-500 flex items-center gap-1">
+              <span className="text-xs text-red-500 flex items-center gap-1 animate-pulse">
                 <AlertCircle className="h-3 w-3" aria-hidden="true" />
                 Check connection
+              </span>
+            )}
+            {store.status === "pending" && (
+              <span className="text-xs text-yellow-600 flex items-center gap-1">
+                <Clock className="h-3 w-3 animate-spin" aria-hidden="true" />
+                Setting up...
               </span>
             )}
           </div>
